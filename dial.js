@@ -8,10 +8,8 @@ const P = (r, a) => [C + r * Math.sin(a * rad), C - r * Math.cos(a * rad)];
 const norm = a => ((a % 360) + 360) % 360;
 const gap = (a, b) => Math.abs(norm(a - b + 180) - 180);
 
-// Radios, de fuera adentro: nombres de los oficios, horas de reloj (si se piden), anillo de horas
-// temporales. Sin horas, el anillo crece y ocupa la franja que dejan.
-const R_CLEAN = { face: 156, name: 137, ring1: 128, ring0: 108, nowOut: 131, mark0: 103, hand0: 92 };
-const R_TIMES = { face: 156, name: 144, time: 128, ring1: 121, ring0: 100, nowOut: 124, mark0: 96, hand0: 86 };
+// Radios, de fuera adentro: nombres de los oficios y anillo de horas temporales.
+const R = { face: 156, name: 137, ring1: 128, ring0: 108, nowOut: 131, mark0: 103, hand0: 92 };
 const BOTTOM_LIFT = 8; // abajo el texto mira hacia dentro: su línea base va 8 más afuera
 
 // Corona entre r0 y r1, de a0 a a1 en sentido horario (grados de reloj: 0 arriba).
@@ -40,9 +38,8 @@ function place(items, r) {
   return done;
 }
 
-// Ancho de los textos de la esfera, medido en Chrome: nombres en Alegreya SC 500 a 14, horas a 13.
+// Ancho de los nombres en la esfera (Alegreya SC 500 a 14), medido en Chrome.
 const LAB_W = { Prima: 41, Tercia: 46, Sexta: 40, Nona: 37, 'Vísperas': 61, Completas: 74, Maitines: 63, Laudes: 49 };
-const TIME_W = 30;
 
 // Números romanos de las horas, en Alegreya 600 a 11: ancho aproximado por letra (I estrecha, V y X anchas).
 const ROM = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
@@ -52,15 +49,13 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;',
 
 // Esfera natural: el mediodía solar arriba y la medianoche abajo, y cada tramo ocupa lo que dura de
 // verdad. La aguja gira a ritmo constante; lo que cambia con la estación es el tamaño de las horas:
-// en invierno el arco de luz se encoge y en verano crece. Con showTimes, junto a cada cambio de oficio
-// va su hora de reloj, y la salida y la puesta de sol en negrita. Cada tramo de oficio es tocable:
-// lleva data-o, data-from y data-to (ms) para que la app enseñe su horario en el centro.
-// o = { day, night, noon, now, office, time, sub, isDay, next, polar, fmt, times, showTimes, peek, small }
-// times: hora a enseñar por oficio y para 'ocaso' (ver dialTimes); sin él, la del tramo dibujado.
+// en invierno el arco de luz se encoge y en verano crece. Cada oficio y cada hora son tocables: los
+// oficios llevan data-o, data-from y data-to (ms) y las horas data-h, para que la app enseñe su horario.
+// o = { day, night, noon, now, office, time, sub, isDay, next, polar, times, peek, peekHour, small }
+// times: inicio a enseñar por oficio (ver dialTimes); sin él, el del tramo dibujado.
 // peek: oficio que se está consultando (se resalta su nombre); peekHour: hora consultada ('d0'…'n11'),
 // que se levanta en el anillo; small: la línea de la hora, más pequeña.
 export function dialNatural(o, id = 'n') {
-  const R = o.showTimes ? R_TIMES : R_CLEAN;
   const ang = t => norm((t - o.noon) / dayMs * 360);
   const sweep = (a, b) => norm(b - a);
   let s = `<circle class="face" cx="${C}" cy="${C}" r="${R.face}"/>`;
@@ -111,21 +106,6 @@ export function dialNatural(o, id = 'n') {
     for (const x of names) {
       const cls = 'o-lab' + (x.name === hl ? (dayName(x.name) ? ' cur day' : ' cur') : '');
       s += curved(`${id}-o${x.i}`, R.name, x.a, cls, x.name);
-    }
-
-    // Horas de reloj en cada divisoria, y la puesta de sol a mitad de Vísperas: los nombres marcan el
-    // tramo y las horas sus bordes (Prima, de la salida a Tercia). Prioridad: el oficio siguiente,
-    // salida y puesta, Sexta (mediodía) y el resto.
-    if (o.showTimes) {
-      const sunset = { name: 'ocaso', a: ang(o.day.end), hz: true };
-      const times = place([...marks.map(x => ({ ...x, hz: x.name === 'Prima' })), sunset].map(x => ({
-        ...x, w: TIME_W, pri: x.name === o.next ? -1 : x.hz ? 0 : x.name === 'Sexta' ? 2 : 3 + (x.i || 0) / 10
-      })), R.time);
-      times.forEach((x, k) => {
-        const cls = 't-lab' + (x.hz ? ' hz' : '') + (x.name === o.next ? ' next' : '');
-        const t = (o.times && o.times[x.name]) || (x.name === 'ocaso' ? o.day.end : x.t);
-        s += curved(`${id}-t${k}`, R.time, x.a, cls, o.fmt(t));
-      });
     }
 
     const a = ang(o.now), [hx0, hy0] = P(R.hand0, a), [hx1, hy1] = P(R.nowOut, a);

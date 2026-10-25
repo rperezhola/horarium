@@ -89,7 +89,7 @@ function render(force) {
   const ok = !ctx.polar && ctx.cur;
   const tp = ok ? temporal(ctx.cur, now) : null;
   if (peek && Date.now() > peek.until) peek = null;
-  const key = [fmt(now), tp && tp.hour, tp && tp.minute, pl.id, pl.lat, pl.lon, store.mode, geo.status, view, store.showTimes, peek && peek.key].join('|');
+  const key = [fmt(now), tp && tp.hour, tp && tp.minute, pl.id, pl.lat, pl.lon, store.mode, geo.status, view, peek && peek.key].join('|');
   if (!force && key === lastKey) return;
   lastKey = key;
 
@@ -104,7 +104,7 @@ function render(force) {
   const nx = ok ? nextOffice(ctx, now) : null;
   if (ok) {
     const isDay = ctx.cur.kind === 'day', p = cyclePos(ctx, now), off = officeAt(p);
-    const base = { day: ctx.day, night: ctx.night, noon: ctx.noon, now, next: nx && nx.name, fmt, times: dialTimes(now, pl.lat, pl.lon, pl.tz), showTimes: !!store.showTimes };
+    const base = { day: ctx.day, night: ctx.night, noon: ctx.noon, now, next: nx && nx.name, fmt, times: dialTimes(now, pl.lat, pl.lon, pl.tz) };
     // Consultando un oficio o una hora: su horario en el centro, unos segundos.
     const center = peek
       ? { office: peek.name, time: `${fmt(peek.from)} – ${fmt(peek.to)}`, small: true, peek: peek.name, peekHour: peek.hour,
@@ -113,16 +113,10 @@ function render(force) {
       : { office: off.name, time: fmt(now), sub: `hora ${ROM[tp.hour - 1]} · minuto ${tp.minute}`, isDay };
     $('dial').innerHTML = dialNatural({ ...base, ...center });
     $('dial').setAttribute('aria-label', `${off.name}, ${fmt(now)}, hora ${ROM[tp.hour - 1]} ${isDay ? 'del día' : 'de la noche'}, minuto ${tp.minute}`);
-    $('next').innerHTML = nx ? `Siguiente: <b>${nx.name}</b> a las ${fmt(nx.t)} · en ${fmtDur(nx.t - now)}` : '';
-    $('toggle-times').hidden = false;
-    $('toggle-times').textContent = store.showTimes ? 'Ocultar horas' : 'Ver horas';
-    $('toggle-times').setAttribute('aria-pressed', !!store.showTimes);
   } else {
-    $('toggle-times').hidden = true;
     const title = ctx.polar === 'day' ? 'Sol de medianoche' : ctx.polar === 'night' ? 'Noche polar' : 'Sin medida';
     $('dial').innerHTML = dialNatural({ office: title, time: fmt(now), sub: 'hoy no hay horas temporales', isDay: ctx.polar === 'day', polar: ctx.polar || 'night' });
     $('dial').setAttribute('aria-label', `${title}, ${fmt(now)}`);
-    $('next').textContent = ctx.polar ? 'Sin amanecer o sin ocaso no hay día ni noche que repartir en doce partes.' : 'Falta un ocaso o un amanecer cercano con el que medir esta noche.';
   }
 
   if (view === 'dia') renderDay(ctx, now, pl, nx, fmt);
@@ -253,7 +247,6 @@ document.addEventListener('click', ev => {
     toast(`Quitado: ${gone.name}`, () => { store.places.splice(i, 0, gone); if (wasMode) store.mode = gone.id; save(); renderPlaces(); render(true); });
     return;
   }
-  if (b.id === 'toggle-times') { store.showTimes = !store.showTimes; save(); render(true); return; }
   if (b.id === 'toast-undo') { if (undo) undo(); undo = null; $('toast').hidden = true; return; }
   if (b.id === 'use-here') { setMode('here'); showView('reloj'); return; }
   if (b.dataset.add) {
