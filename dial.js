@@ -131,9 +131,12 @@ export function dialNatural(o, id = 'n') {
     const a = ang(o.now), [hx0, hy0] = P(R.hand0, a), [hx1, hy1] = P(R.nowOut, a);
     s += `<line class="hand" x1="${f(hx0)}" y1="${f(hy0)}" x2="${f(hx1)}" y2="${f(hy1)}"/><circle class="hand-dot" cx="${f(hx0)}" cy="${f(hy0)}" r="4.5"/>`;
 
-    // Oficio consultado entero: su tramo del anillo, enmarcado en negro de borde a borde.
+    // Oficio consultado entero: sus dos divisorias, en negro, para ver de dónde a dónde va.
     const pk = o.peek && !o.peekHour && marks.find(x => x.name === o.peek);
-    if (pk) s += `<path class="span-peek" d="${sector(R.ring0, R.nowOut, pk.a, pk.a + pk.sw)}"/>`;
+    if (pk) for (const a of [pk.a, pk.a + pk.sw]) {
+      const [x0, y0] = P(R.mark0 - 4, a), [x1, y1] = P(R.nowOut + 2, a);
+      s += `<line class="edge-peek" x1="${f(x0)}" y1="${f(y0)}" x2="${f(x1)}" y2="${f(y1)}"/>`;
+    }
 
     // Zonas tocables, encima de todo: cada hora temporal en el anillo y cada oficio entero por fuera.
     s += hourHits;
