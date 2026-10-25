@@ -8,6 +8,7 @@
 
 :root {
   --bg: #ECEEF2; --surface: #E1E5EC; --ink: #19202F; --muted: #586276; --rule: #C6CDD9;
+  --on-d0: #FFFFFF; --on-d1: #19202F; --on-n0: #FFFFFF; --on-n1: #19202F;
   --gold: #9E6F16; --gold-2: #D6B46A; --lapis: #2A4396; --lapis-2: #8E9FD7; --rubric: #A3302A;
   --f-display: "Alegreya", Georgia, serif;
   --f-sc: "Alegreya SC", "Alegreya", Georgia, serif;
@@ -18,6 +19,7 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #0D121E; --surface: #161D2F; --ink: #E7E4DA; --muted: #9BA3B5; --rule: #283149;
+    --on-d0: #0D121E; --on-d1: #E7E4DA; --on-n0: #0D121E; --on-n1: #E7E4DA;
     --gold: #DBAF52; --gold-2: #7A6026; --lapis: #7A8FDE; --lapis-2: #2D3C73; --rubric: #E5806F;
     color-scheme: dark;
   }
@@ -77,6 +79,9 @@ main { max-width: 560px; margin: 0 auto; padding: 0 16px; }
 
 .horizon { stroke: var(--ink); stroke-width: 2.25; stroke-linecap: round; }
 .hit { fill: transparent; pointer-events: all; cursor: pointer; }
+.rn { font: 600 11px var(--f-display); letter-spacing: .03em; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+.rn.d0 { fill: var(--on-d0); } .rn.d1 { fill: var(--on-d1); }
+.rn.n0 { fill: var(--on-n0); } .rn.n1 { fill: var(--on-n1); }
 .c-time.small { font-size: 24px; }
 .center { text-align: center; margin-top: 8px; }
 button.ghost { background: none; color: var(--muted); border: 1px solid var(--rule); border-radius: 22px; min-height: 44px; padding: 0 20px; font-size: 15px; }

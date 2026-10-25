@@ -44,6 +44,10 @@ function place(items, r) {
 const LAB_W = { Prima: 41, Tercia: 46, Sexta: 40, Nona: 37, 'Vísperas': 61, Completas: 74, Maitines: 63, Laudes: 49 };
 const TIME_W = 30;
 
+// Números romanos de las horas, en Alegreya 600 a 11: ancho aproximado por letra (I estrecha, V y X anchas).
+const ROM = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
+const romW = s => [...s].reduce((w, c) => w + (c === 'I' ? 4 : 7.5), 0);
+
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 // Esfera natural: el mediodía solar arriba y la medianoche abajo, y cada tramo ocupa lo que dura de
@@ -66,7 +70,7 @@ export function dialNatural(o, id = 'n') {
     const k = o.polar === 'day' ? 'd0' : 'n0';
     s += `<path class="seg ${k}" d="${sector(R.ring0, R.ring1, 0, 180)}"/><path class="seg ${k}" d="${sector(R.ring0, R.ring1, 180, 360)}"/>`;
   } else {
-    let nowPath = '', hourHits = '';
+    let nowPath = '', hourHits = '', nums = '';
     for (const seg of [o.day, o.night]) {
       if (!seg) continue;
       const k = seg.kind === 'day' ? 'd' : 'n', hm = (seg.end - seg.start) / 12;
@@ -76,9 +80,16 @@ export function dialNatural(o, id = 'n') {
         const p = `<path class="seg ${k}${i % 2}${now ? ' now' : ''}${pk ? ' peek' : ''}" d="${sector(R.ring0, now || pk ? R.nowOut : R.ring1, a0, a0 + sw)}"/>`;
         if (now || pk) nowPath += p; else s += p;
         hourHits += `<path class="hit" data-h="${k}${i}" d="${sector(R.mark0 - 6, R.nowOut + 2, a0, a0 + sw)}"/>`;
+        // Número romano de la hora, derecho (girado, XI y IX se confunden en los costados) y dentro de
+        // su trozo: lo que ocupa a lo largo del anillo tiene que caber; si no (Tromsø), se omite.
+        const rm = (R.ring0 + R.ring1) / 2, mid = a0 + sw / 2, w = romW(ROM[i]);
+        if (w * Math.abs(Math.cos(mid * rad)) + 8 * Math.abs(Math.sin(mid * rad)) + 2 <= sw * rad * rm) {
+          const [nx, ny] = P(rm, mid);
+          nums += `<text class="rn ${k}${i % 2}" x="${f(nx)}" y="${f(ny)}">${ROM[i]}</text>`;
+        }
       }
     }
-    s += nowPath;
+    s += nowPath + nums;
 
     const marks = OFFICES.map(x => ({ name: x.name, t: x.p < 12 ? at(o.day, x.p / 12) : at(o.night, (x.p - 12) / 12) })).filter(x => x.t);
     marks.forEach((x, i) => { x.a = ang(x.t); x.sw = sweep(x.a, ang(marks[(i + 1) % marks.length].t)); x.i = i; });
