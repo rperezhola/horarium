@@ -5,9 +5,10 @@ horas y la noche en otras 12, así que en verano las horas de día son largas y 
 cortas. Los ocho oficios de la Regla de San Benito (Prima, Tercia, Sexta, Nona, Vísperas,
 Completas, Maitines y Laudes) marcan el día, y la hora de reloj sigue siempre a la vista.
 
-- **Esfera natural**: el día arriba y la noche abajo; el amanecer siempre a la izquierda,
-  el mediodía arriba y el ocaso a la derecha. Lo que cambia con la estación es la velocidad
-  de la aguja.
+- **Esfera natural**: el mediodía solar arriba y la medianoche abajo, y cada tramo ocupa lo
+  que dura de verdad: en invierno el arco de luz se encoge, en verano crece, y en Tromsø se
+  queda en una franja. La aguja gira a ritmo constante; lo que cambia es el tamaño de las horas.
+- `?t=2026-06-21T12:00Z` en la dirección pone el reloj en otro instante, para ver las estaciones.
 - **Dónde**: tu ubicación por GPS, Madrid o cualquier ciudad (buscador de Open-Meteo). Las
   horas salen en la zona horaria del lugar.
 - **Sin red**: es una PWA; se instala en el móvil y abre sin conexión.

@@ -58,11 +58,31 @@ const near = (d, hhmm, tol = 3, tz) => {
   assert.equal(c.polar, 'night');
 }
 
-// La esfera se pinta y lleva los ocho oficios.
+// La esfera se pinta: en invierno caben los ocho nombres y el arco de luz es menor que el de noche.
 {
-  const svg = dialNatural({ p: 3.4, office: 'Tercia', time: '10:42', sub: 'hora IV · minuto 24', isDay: true, next: 'Sexta' });
+  const now = new Date('2026-12-21T09:40:00Z'), c = buildCtx(now, ...MAD);
+  const svg = dialNatural({ ...c, now, office: 'Tercia', time: '10:40', sub: 'hora IV · minuto 24', isDay: true, next: 'Sexta' });
   for (const n of ['Prima', 'Tercia', 'Sexta', 'Nona', 'Vísperas', 'Completas', 'Maitines', 'Laudes']) assert.ok(svg.includes(`>${n}<`), n);
   assert.ok(!svg.includes('NaN'));
+  assert.ok(c.day.end - c.day.start < 10 * 3600000);
+}
+
+// En verano también caben los ocho, aunque Laudes desborde su tramo de 46 minutos.
+{
+  const now = new Date('2026-06-21T10:00:00Z'), c = buildCtx(now, ...MAD);
+  const svg = dialNatural({ ...c, now, office: 'Tercia', time: '12:00', sub: '', isDay: true });
+  for (const n of ['Prima', 'Sexta', 'Vísperas', 'Laudes']) assert.ok(svg.includes(`>${n}<`), n);
+  assert.ok(!svg.includes('NaN'));
+}
+
+// Tromsø a finales de noviembre: el día se comprime, los nombres que chocan se omiten
+// y el oficio en curso se queda.
+{
+  const now = new Date('2026-11-24T10:00:00Z'), c = buildCtx(now, 69.65, 18.96, 'Europe/Oslo');
+  assert.ok(!c.polar && c.day.end - c.day.start < 3 * 3600000);
+  const svg = dialNatural({ ...c, now, office: 'Sexta', time: '11:00', sub: '', isDay: true });
+  const shown = ['Prima', 'Tercia', 'Sexta', 'Nona', 'Vísperas', 'Completas', 'Maitines', 'Laudes'].filter(n => svg.includes(`>${n}<`));
+  assert.ok(shown.includes('Sexta') && shown.length < 8 && !svg.includes('NaN'), shown.join());
 }
 
 console.log('ok');

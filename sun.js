@@ -43,8 +43,8 @@ export function buildCtx(now, lat, lon, tz) {
   const { y, m, d } = ymdIn(now, tz);
   const S = k => sunTimes(solarNoon(y, m, d + k, lon), lat, lon);
   const yd = S(-1), td = S(0), tm = S(1);
-  if (td.polar) return { polar: td.polar };
-  const ctx = { day: { start: td.rise, end: td.set, kind: 'day' } };
+  if (td.polar) return { polar: td.polar, noon: td.noon };
+  const ctx = { day: { start: td.rise, end: td.set, kind: 'day' }, noon: td.noon };
   ctx.nightPrev = yd.polar ? null : { start: yd.set, end: td.rise, kind: 'night' };
   ctx.nightNext = tm.polar ? null : { start: td.set, end: tm.rise, kind: 'night' };
   if (now < td.rise) ctx.cur = ctx.nightPrev;

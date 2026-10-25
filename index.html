@@ -25,6 +25,7 @@
 <main>
   <section id="v-reloj" class="view">
     <svg id="dial" class="dial" viewBox="0 0 320 320" role="img" aria-label="Reloj de horas temporales"></svg>
+    <p class="sun" id="sun">&nbsp;</p>
     <p class="next" id="next">&nbsp;</p>
     <p class="msg" id="msg" hidden></p>
   </section>
@@ -38,8 +39,6 @@
     </dl>
     <h2>Horario</h2>
     <ol class="hours" id="hours"></ol>
-    <h2>En 24 horas de reloj</h2>
-    <svg id="dial24" class="dial small" viewBox="0 0 320 320" role="img" aria-label="Horas temporales sobre las 24 horas de reloj"></svg>
     <h2>A lo largo del año</h2>
     <p class="legend"><span><i class="sw"></i>Hora de día</span><span><i class="sw n"></i>Hora de noche</span><span><i class="sw r"></i>Hora de reloj</span></p>
     <svg id="year" class="chart" viewBox="0 0 420 240" role="img" aria-label="Duración de las horas temporales a lo largo del año"></svg>

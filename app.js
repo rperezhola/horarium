@@ -1,5 +1,5 @@
 import { buildCtx, temporal, cyclePos, officeAt, todayOffices, nextOffice, sunTimes, solarNoon, ymdIn } from './sun.js';
-import { dialNatural, dial24 } from './dial.js';
+import { dialNatural } from './dial.js';
 
 const $ = id => document.getElementById(id);
 const dayMs = 86400000;
@@ -8,6 +8,9 @@ const MON = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct
 const MADRID = { id: 'madrid', name: 'Madrid', lat: 40.4168, lon: -3.7038, tz: 'Europe/Madrid' };
 const DEVICE_TZ = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Madrid';
 const KEY = 'horarium:v1';
+// ?t=2026-06-21T12:00Z pone el reloj en otro instante, para ver cómo cambia con las estaciones.
+const T0 = Date.parse(new URLSearchParams(location.search).get('t') || '');
+const SHIFT = isNaN(T0) ? 0 : T0 - Date.now();
 
 // ---------- Estado guardado: modo (aquí o un lugar), lugares y última posición conocida ----------
 
@@ -69,7 +72,6 @@ function clockParts(d, tz) {
   return p;
 }
 const fmtT = (d, tz) => { const p = clockParts(d, tz); return pad(p.hour) + ':' + pad(p.minute); };
-const hoursIn = (d, tz) => { const p = clockParts(d, tz); return p.hour + p.minute / 60 + p.second / 3600; };
 function fmtDur(ms) { const t = Math.max(0, Math.round(ms / 60000)), h = Math.floor(t / 60), m = t % 60; return h ? (m ? `${h} h ${m} min` : `${h} h`) : `${m} min`; }
 function durHTML(ms) { const t = Math.round(ms / 60000), h = Math.floor(t / 60), m = t % 60; return h ? `${h}<span class="u">h</span>${m}<span class="u">min</span>` : `${m}<span class="u">min</span>`; }
 const fmtCoord = (v, p, q) => Math.abs(v).toFixed(2).replace('.', ',') + '° ' + (v >= 0 ? p : q);
@@ -81,7 +83,7 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;',
 let lastKey = '', yearKey = '', view = 'reloj';
 
 function render(force) {
-  const now = new Date(), pl = currentPlace();
+  const now = new Date(Date.now() + SHIFT), pl = currentPlace();
   const ctx = buildCtx(now, pl.lat, pl.lon, pl.tz);
   const fmt = d => fmtT(d, pl.tz);
   const ok = !ctx.polar && ctx.cur;
@@ -101,12 +103,14 @@ function render(force) {
   const nx = ok ? nextOffice(ctx, now) : null;
   if (ok) {
     const isDay = ctx.cur.kind === 'day', p = cyclePos(ctx, now), off = officeAt(p);
-    $('dial').innerHTML = dialNatural({ p, office: off.name, time: fmt(now), sub: `hora ${ROM[tp.hour - 1]} · minuto ${tp.minute}`, isDay, next: nx && nx.name });
+    $('dial').innerHTML = dialNatural({ day: ctx.day, night: ctx.night, noon: ctx.noon, now, office: off.name, time: fmt(now), sub: `hora ${ROM[tp.hour - 1]} · minuto ${tp.minute}`, isDay, next: nx && nx.name });
     $('dial').setAttribute('aria-label', `${off.name}, ${fmt(now)}, hora ${ROM[tp.hour - 1]} ${isDay ? 'del día' : 'de la noche'}, minuto ${tp.minute}`);
     $('next').innerHTML = nx ? `Siguiente: <b>${nx.name}</b> a las ${fmt(nx.t)} · en ${fmtDur(nx.t - now)}` : '';
+    $('sun').innerHTML = `<span class="sw-d"></span>Sale el sol ${fmt(ctx.day.start)}<span class="sep">·</span><span class="sw-n"></span>se pone ${fmt(ctx.day.end)}`;
   } else {
+    $('sun').textContent = ctx.polar === 'day' ? 'Hoy el sol no se pone.' : ctx.polar === 'night' ? 'Hoy no sale el sol.' : '';
     const title = ctx.polar === 'day' ? 'Sol de medianoche' : ctx.polar === 'night' ? 'Noche polar' : 'Sin medida';
-    $('dial').innerHTML = dialNatural({ p: null, office: title, time: fmt(now), sub: 'hoy no hay horas temporales', isDay: ctx.polar === 'day', polar: ctx.polar || 'night' });
+    $('dial').innerHTML = dialNatural({ office: title, time: fmt(now), sub: 'hoy no hay horas temporales', isDay: ctx.polar === 'day', polar: ctx.polar || 'night' });
     $('dial').setAttribute('aria-label', `${title}, ${fmt(now)}`);
     $('next').textContent = ctx.polar ? 'Sin amanecer o sin ocaso no hay día ni noche que repartir en doce partes.' : 'Falta un ocaso o un amanecer cercano con el que medir esta noche.';
   }
@@ -137,8 +141,6 @@ function renderDay(ctx, now, pl, nx, fmt) {
       return `<li class="k-${o.kind}${past ? ' past' : ''}${isN ? ' next' : ''}"><span class="n">${o.name}${isN ? '<span class="tag">siguiente</span>' : ''}</span><span class="t">${o.t ? fmt(o.t) : '—'}</span></li>`;
     }).join('');
   }
-  const list = ctx.polar ? [] : todayOffices(ctx);
-  $('dial24').innerHTML = dial24(ctx, now, list, nx, d => hoursIn(d, pl.tz), fmt);
   const { y, m, d } = ymdIn(now, pl.tz);
   const k = `${y}-${m}-${d}|${pl.lat}|${pl.lon}`;
   if (k !== yearKey) { yearKey = k; renderYear(y, m, d, pl); }
@@ -291,4 +293,6 @@ if (store.mode === 'here') startGeo();
 showView('reloj');
 setInterval(render, 1000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) render(true); });
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+// En local no se registra: el caché del service worker serviría la versión vieja mientras se edita.
+const LOCAL = ['127.0.0.1', 'localhost'].includes(location.hostname);
+if ('serviceWorker' in navigator && !LOCAL) navigator.serviceWorker.register('sw.js').catch(() => {});
