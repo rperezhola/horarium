@@ -106,12 +106,10 @@ function render(force) {
     const isDay = ctx.cur.kind === 'day', p = cyclePos(ctx, now), off = officeAt(p);
     const base = { day: ctx.day, night: ctx.night, noon: ctx.noon, now, next: nx && nx.name, fmt, times: dialTimes(now, pl.lat, pl.lon, pl.tz), showTimes: !!store.showTimes };
     // Consultando un oficio o una hora: su horario en el centro, unos segundos.
-    const live = peek && now >= peek.from && now < peek.to;
     const center = peek
       ? { office: peek.name, time: `${fmt(peek.from)} – ${fmt(peek.to)}`, small: true, peek: peek.name, peekHour: peek.hour,
           isDay: peek.hour ? peek.hour[0] === 'd' : OFFICES.find(x => x.name === peek.name).p < 12,
-          sub: peek.hour ? peek.label + (live ? ' · ahora' : '')
-            : live ? `en curso · quedan ${fmtDur(peek.to - now)}` : `empieza en ${fmtDur(peek.from - now)}` }
+          sub: (peek.hour ? peek.label + ' · ' : '') + 'dura ' + fmtDur(peek.to - peek.from) }
       : { office: off.name, time: fmt(now), sub: `hora ${ROM[tp.hour - 1]} · minuto ${tp.minute}`, isDay };
     $('dial').innerHTML = dialNatural({ ...base, ...center });
     $('dial').setAttribute('aria-label', `${off.name}, ${fmt(now)}, hora ${ROM[tp.hour - 1]} ${isDay ? 'del día' : 'de la noche'}, minuto ${tp.minute}`);
@@ -278,7 +276,7 @@ function peekAt(target, ms) {
     const span = hourSpan(new Date(Date.now() + SHIFT), pl.lat, pl.lon, pl.tz, kind, i);
     if (!span) return false;
     peek = { key, hour: h.dataset.h, name: officeAt((kind === 'day' ? 0 : 12) + i + 0.5).name, ...span,
-      label: `hora ${ROM[i]} ${kind === 'day' ? 'del día' : 'de la noche'}` };
+      label: `hora ${ROM[i]}` };
   } else {
     peek = { key, name: h.dataset.o, from: new Date(+h.dataset.from), to: new Date(+h.dataset.to) };
   }
