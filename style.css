@@ -18,14 +18,23 @@
   --dock: 124px;
   color-scheme: light;
 }
+/* Tema: la app pone data-theme en <html> (por defecto, oscuro cuando el sol del lugar está puesto).
+   Sin JavaScript manda la preferencia del sistema. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #0D121E; --surface: #161D2F; --ink: #E7E4DA; --muted: #9BA3B5; --rule: #283149;
     --on-d0: #0D121E; --on-d1: #E7E4DA; --on-n0: #0D121E; --on-n1: #E7E4DA;
     --sun: #CF9672;
     --gold: #DBAF52; --gold-2: #7A6026; --lapis: #7A8FDE; --lapis-2: #2D3C73; --rubric: #E5806F;
     color-scheme: dark;
   }
+}
+:root[data-theme="dark"] {
+    --bg: #0D121E; --surface: #161D2F; --ink: #E7E4DA; --muted: #9BA3B5; --rule: #283149;
+    --on-d0: #0D121E; --on-d1: #E7E4DA; --on-n0: #0D121E; --on-n1: #E7E4DA;
+    --sun: #CF9672;
+    --gold: #DBAF52; --gold-2: #7A6026; --lapis: #7A8FDE; --lapis-2: #2D3C73; --rubric: #E5806F;
+    color-scheme: dark;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -52,7 +61,12 @@ p { margin: 0; }
 @media (prefers-reduced-motion: reduce) { .motto { transition: none; } }
 .where, .date { font-size: 15px; color: var(--muted); }
 .where { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: lining-nums tabular-nums; }
-.date { text-align: right; flex: none; }
+.date { text-align: right; }
+.right { display: flex; align-items: center; gap: 2px; flex: none; }
+/* Botón de tema: casi invisible, pero con área de toque suficiente. */
+.theme { background: none; border: 0; padding: 0; min-height: 0; width: 34px; height: 34px; margin: -8px -10px -8px 0; display: grid; place-items: center; color: var(--muted); opacity: .45; cursor: pointer; }
+.theme:hover, .theme:focus-visible { opacity: 1; }
+.theme svg { width: 14px; height: 14px; display: block; }
 
 main { max-width: 560px; margin: 0 auto; padding: 0 16px; }
 

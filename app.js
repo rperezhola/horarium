@@ -82,14 +82,33 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;',
 
 let lastKey = '', yearKey = '', view = 'reloj', peek = null;
 
+// Tema: 'sol' (por defecto) es claro con el sol arriba y oscuro con el sol puesto, en el lugar que se ve.
+const THEMES = {
+  sol: { label: 'Tema automático: claro de día, oscuro de noche', icon: '<svg viewBox="0 0 14 14"><circle cx="7" cy="7" r="5.8" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M1.6 6.2A5.8 5.8 0 0 1 12.4 6.2Z" fill="currentColor"/></svg>' },
+  light: { label: 'Tema claro', icon: '<svg viewBox="0 0 14 14"><circle cx="7" cy="7" r="2.8" fill="currentColor"/><g stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><path d="M7 .9v1.6M7 11.5v1.6M.9 7h1.6M11.5 7h1.6M2.7 2.7l1.1 1.1M10.2 10.2l1.1 1.1M2.7 11.3l1.1-1.1M10.2 3.8l1.1-1.1"/></g></svg>' },
+  dark: { label: 'Tema oscuro', icon: '<svg viewBox="0 0 14 14"><path d="M9.6 1.4A5.8 5.8 0 1 0 12.6 9.2 4.6 4.6 0 0 1 9.6 1.4Z" fill="currentColor"/></svg>' }
+};
+const THEME_ORDER = ['sol', 'light', 'dark'];
+function applyTheme(sunUp) {
+  const mode = THEMES[store.theme] ? store.theme : 'sol', t = mode === 'sol' ? (sunUp ? 'light' : 'dark') : mode;
+  const root = document.documentElement;
+  if (root.dataset.theme !== t) {
+    root.dataset.theme = t;
+    document.querySelectorAll('meta[name="theme-color"]').forEach(m => { m.content = t === 'dark' ? '#0D121E' : '#ECEEF2'; });
+  }
+  const b = $('theme');
+  if (b.dataset.theme !== mode) { b.dataset.theme = mode; b.innerHTML = THEMES[mode].icon; b.title = THEMES[mode].label; b.setAttribute('aria-label', THEMES[mode].label); }
+}
+
 function render(force) {
   const now = new Date(Date.now() + SHIFT), pl = currentPlace();
   const ctx = buildCtx(now, pl.lat, pl.lon, pl.tz);
   const fmt = d => fmtT(d, pl.tz);
   const ok = !ctx.polar && ctx.cur;
   const tp = ok ? temporal(ctx.cur, now) : null;
+  applyTheme(ok ? ctx.cur.kind === 'day' : ctx.polar === 'day');
   if (peek && Date.now() > peek.until) peek = null;
-  const key = [fmt(now), tp && tp.hour, tp && tp.minute, pl.id, pl.lat, pl.lon, store.mode, geo.status, view, peek && peek.key].join('|');
+  const key = [fmt(now), tp && tp.hour, tp && tp.minute, pl.id, pl.lat, pl.lon, store.mode, geo.status, view, peek && peek.key, store.theme].join('|');
   if (!force && key === lastKey) return;
   lastKey = key;
 
@@ -247,6 +266,7 @@ document.addEventListener('click', ev => {
     toast(`Quitado: ${gone.name}`, () => { store.places.splice(i, 0, gone); if (wasMode) store.mode = gone.id; save(); renderPlaces(); render(true); });
     return;
   }
+  if (b.id === 'theme') { store.theme = THEME_ORDER[(THEME_ORDER.indexOf(store.theme || 'sol') + 1) % 3]; save(); render(true); return; }
   if (b.id === 'toast-undo') { if (undo) undo(); undo = null; $('toast').hidden = true; return; }
   if (b.id === 'use-here') { setMode('here'); showView('reloj'); return; }
   if (b.dataset.add) {
