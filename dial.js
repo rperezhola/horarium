@@ -8,8 +8,10 @@ const P = (r, a) => [C + r * Math.sin(a * rad), C - r * Math.cos(a * rad)];
 const norm = a => ((a % 360) + 360) % 360;
 const gap = (a, b) => Math.abs(norm(a - b + 180) - 180);
 
-// Radios, de fuera adentro: nombres de los oficios, horas de reloj, anillo de horas temporales.
-const R = { face: 156, name: 144, time: 128, ring1: 121, ring0: 100, nowOut: 124, mark0: 96, hand0: 86 };
+// Radios, de fuera adentro: nombres de los oficios, horas de reloj (si se piden), anillo de horas
+// temporales. Sin horas, el anillo crece y ocupa la franja que dejan.
+const R_CLEAN = { face: 156, name: 137, ring1: 128, ring0: 108, nowOut: 131, mark0: 103, hand0: 92 };
+const R_TIMES = { face: 156, name: 144, time: 128, ring1: 121, ring0: 100, nowOut: 124, mark0: 96, hand0: 86 };
 const BOTTOM_LIFT = 8; // abajo el texto mira hacia dentro: su línea base va 8 más afuera
 
 // Corona entre r0 y r1, de a0 a a1 en sentido horario (grados de reloj: 0 arriba).
@@ -46,11 +48,14 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;',
 
 // Esfera natural: el mediodía solar arriba y la medianoche abajo, y cada tramo ocupa lo que dura de
 // verdad. La aguja gira a ritmo constante; lo que cambia con la estación es el tamaño de las horas:
-// en invierno el arco de luz se encoge y en verano crece. Junto a cada cambio de oficio, su hora de
-// reloj; la salida y la puesta de sol, en negrita.
-// o = { day, night, noon, now, office, time, sub, isDay, next, polar, fmt, times }
+// en invierno el arco de luz se encoge y en verano crece. Con showTimes, junto a cada cambio de oficio
+// va su hora de reloj, y la salida y la puesta de sol en negrita. Cada tramo de oficio es tocable:
+// lleva data-o, data-from y data-to (ms) para que la app enseñe su horario en el centro.
+// o = { day, night, noon, now, office, time, sub, isDay, next, polar, fmt, times, showTimes, peek, small }
 // times: hora a enseñar por oficio y para 'ocaso' (ver dialTimes); sin él, la del tramo dibujado.
+// peek: oficio que se está consultando (se resalta su nombre); small: la línea de la hora, más pequeña.
 export function dialNatural(o, id = 'n') {
+  const R = o.showTimes ? R_TIMES : R_CLEAN;
   const ang = t => norm((t - o.noon) / dayMs * 360);
   const sweep = (a, b) => norm(b - a);
   let s = `<circle class="face" cx="${C}" cy="${C}" r="${R.face}"/>`;
@@ -88,31 +93,44 @@ export function dialNatural(o, id = 'n') {
 
     // Nombres, centrados en su tramo: pueden desbordarlo, pero si chocan con un vecino se omiten
     // (cuando el día se comprime, como en Tromsø). Primero el oficio en curso, luego los tramos anchos.
-    const names = place(marks.map(x => ({ ...x, a: x.a + x.sw / 2, w: LAB_W[x.name], pri: x.name === o.office ? -1 : -x.sw })), R.name);
+    const hl = o.peek || o.office, dayName = n => OFFICES.find(x => x.name === n).p < 12;
+    const names = place(marks.map(x => ({ ...x, a: x.a + x.sw / 2, w: LAB_W[x.name], pri: x.name === hl ? -1000 : -x.sw })), R.name);
     for (const x of names) {
-      const cls = 'o-lab' + (x.name === o.office ? (o.isDay ? ' cur day' : ' cur') : '');
+      const cls = 'o-lab' + (x.name === hl ? (dayName(x.name) ? ' cur day' : ' cur') : '');
       s += curved(`${id}-o${x.i}`, R.name, x.a, cls, x.name);
     }
 
     // Horas de reloj en cada divisoria, y la puesta de sol a mitad de Vísperas: los nombres marcan el
     // tramo y las horas sus bordes (Prima, de la salida a Tercia). Prioridad: el oficio siguiente,
     // salida y puesta, Sexta (mediodía) y el resto.
-    const sunset = { name: 'ocaso', a: ang(o.day.end), hz: true };
-    const times = place([...marks.map(x => ({ ...x, hz: x.name === 'Prima' })), sunset].map(x => ({
-      ...x, w: TIME_W, pri: x.name === o.next ? -1 : x.hz ? 0 : x.name === 'Sexta' ? 2 : 3 + (x.i || 0) / 10
-    })), R.time);
-    times.forEach((x, k) => {
-      const cls = 't-lab' + (x.hz ? ' hz' : '') + (x.name === o.next ? ' next' : '');
-      const t = (o.times && o.times[x.name]) || (x.name === 'ocaso' ? o.day.end : x.t);
-      s += curved(`${id}-t${k}`, R.time, x.a, cls, o.fmt(t));
-    });
+    if (o.showTimes) {
+      const sunset = { name: 'ocaso', a: ang(o.day.end), hz: true };
+      const times = place([...marks.map(x => ({ ...x, hz: x.name === 'Prima' })), sunset].map(x => ({
+        ...x, w: TIME_W, pri: x.name === o.next ? -1 : x.hz ? 0 : x.name === 'Sexta' ? 2 : 3 + (x.i || 0) / 10
+      })), R.time);
+      times.forEach((x, k) => {
+        const cls = 't-lab' + (x.hz ? ' hz' : '') + (x.name === o.next ? ' next' : '');
+        const t = (o.times && o.times[x.name]) || (x.name === 'ocaso' ? o.day.end : x.t);
+        s += curved(`${id}-t${k}`, R.time, x.a, cls, o.fmt(t));
+      });
+    }
 
     const a = ang(o.now), [hx0, hy0] = P(R.hand0, a), [hx1, hy1] = P(R.nowOut, a);
     s += `<line class="hand" x1="${f(hx0)}" y1="${f(hy0)}" x2="${f(hx1)}" y2="${f(hy1)}"/><circle class="hand-dot" cx="${f(hx0)}" cy="${f(hy0)}" r="4.5"/>`;
+
+    // Zonas tocables, una por tramo de oficio, encima de todo.
+    marks.forEach((x, i) => {
+      // Fin: la hora del oficio siguiente si viene después; si no (el siguiente es el que está en curso
+      // y su hora es la de comienzo, ya pasada), el inicio más lo que dura el tramo dibujado.
+      const nx = marks[(i + 1) % marks.length], from = ((o.times && o.times[x.name]) || x.t).getTime();
+      const nt = o.times && o.times[nx.name] && o.times[nx.name].getTime();
+      const to = nt > from ? nt : from + (nx.t - x.t + dayMs) % dayMs;
+      s += `<path class="hit" data-o="${x.name}" data-from="${from}" data-to="${to}" d="${sector(R.mark0 - 6, R.face, x.a, x.a + x.sw)}"><title>${x.name}</title></path>`;
+    });
   }
 
   s += `<text class="c-office${o.isDay ? ' day' : ''}${live ? '' : ' small'}" x="${C}" y="${C - 14}">${esc(o.office)}</text>`;
-  s += `<text class="c-time" x="${C}" y="${C + 24}">${esc(o.time)}</text>`;
+  s += `<text class="c-time${o.small ? ' small' : ''}" x="${C}" y="${C + 24}">${esc(o.time)}</text>`;
   s += `<text class="c-sub" x="${C}" y="${C + 47}">${esc(o.sub)}</text>`;
   return s;
 }

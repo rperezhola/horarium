@@ -70,7 +70,7 @@ const near = (d, hhmm, tol = 3, tz) => {
 {
   const now = new Date('2026-12-21T09:40:00Z'), c = buildCtx(now, ...MAD);
   const svg = dialNatural({ ...c, now, office: 'Tercia', time: '10:40', sub: 'hora IV · minuto 24', isDay: true, next: 'Sexta', fmt: d => d.toISOString().slice(11, 16) });
-  for (const n of ['Prima', 'Tercia', 'Sexta', 'Nona', 'Vísperas', 'Completas', 'Maitines', 'Laudes']) assert.ok(svg.includes(`>${n}<`), n);
+  for (const n of ['Prima', 'Tercia', 'Sexta', 'Nona', 'Vísperas', 'Completas', 'Maitines', 'Laudes']) assert.ok(svg.includes(`>${n}</textPath>`), n);
   assert.ok(!svg.includes('NaN'));
   assert.ok(c.day.end - c.day.start < 10 * 3600000);
 }
@@ -79,7 +79,7 @@ const near = (d, hhmm, tol = 3, tz) => {
 {
   const now = new Date('2026-06-21T10:00:00Z'), c = buildCtx(now, ...MAD);
   const svg = dialNatural({ ...c, now, office: 'Tercia', time: '12:00', sub: '', isDay: true, fmt: d => d.toISOString().slice(11, 16) });
-  for (const n of ['Prima', 'Sexta', 'Vísperas', 'Laudes']) assert.ok(svg.includes(`>${n}<`), n);
+  for (const n of ['Prima', 'Sexta', 'Vísperas', 'Laudes']) assert.ok(svg.includes(`>${n}</textPath>`), n);
   assert.ok(!svg.includes('NaN'));
 }
 
@@ -89,7 +89,7 @@ const near = (d, hhmm, tol = 3, tz) => {
   const now = new Date('2026-11-24T10:00:00Z'), c = buildCtx(now, 69.65, 18.96, 'Europe/Oslo');
   assert.ok(!c.polar && c.day.end - c.day.start < 3 * 3600000);
   const svg = dialNatural({ ...c, now, office: 'Sexta', time: '11:00', sub: '', isDay: true, fmt: d => d.toISOString().slice(11, 16) });
-  const shown = ['Prima', 'Tercia', 'Sexta', 'Nona', 'Vísperas', 'Completas', 'Maitines', 'Laudes'].filter(n => svg.includes(`>${n}<`));
+  const shown = ['Prima', 'Tercia', 'Sexta', 'Nona', 'Vísperas', 'Completas', 'Maitines', 'Laudes'].filter(n => svg.includes(`>${n}</textPath>`));
   assert.ok(shown.includes('Sexta') && shown.length < 8 && !svg.includes('NaN'), shown.join());
 }
 
