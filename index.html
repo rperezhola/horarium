@@ -28,6 +28,7 @@
 <main>
   <section id="v-reloj" class="view">
     <svg id="dial" class="dial" viewBox="0 0 320 320" role="img" aria-label="Reloj de horas temporales"></svg>
+    <div class="regla-bar" id="regla-bar"></div>
     <p class="msg" id="msg" hidden></p>
   </section>
 
@@ -38,13 +39,15 @@
       <div class="f-day"><dt>Hora de día</dt><dd id="f-day">—</dd></div>
       <div class="f-night"><dt>Hora de noche</dt><dd id="f-night">—</dd></div>
     </dl>
-    <h2>Horario</h2>
+    <h2 id="h-title">Horario</h2>
     <ol class="hours" id="hours"></ol>
     <h2>A lo largo del año</h2>
     <p class="legend"><span><i class="sw"></i>Hora de día</span><span><i class="sw n"></i>Hora de noche</span><span><i class="sw r"></i>Hora de reloj</span></p>
     <svg id="year" class="chart" viewBox="0 0 420 240" role="img" aria-label="Duración de las horas temporales a lo largo del año"></svg>
     <p class="note" id="chart-cap">&nbsp;</p>
   </section>
+
+  <section id="v-regla" class="view" hidden></section>
 
   <section id="v-lugares" class="view" hidden>
     <h2>Aquí</h2>
@@ -77,6 +80,7 @@
   <div class="tabs">
     <button data-v="reloj">Reloj</button>
     <button data-v="dia">Día</button>
+    <button data-v="regla">Regla</button>
     <button data-v="lugares">Lugares</button>
   </div>
 </nav>

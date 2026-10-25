@@ -1,5 +1,7 @@
 import { OFFICES, buildCtx, temporal, cyclePos, officeAt, todayOffices, nextOffice, dialTimes, hourSpan, sunTimes, solarNoon, ymdIn } from './sun.js';
 import { dialNatural } from './dial.js';
+import { ejemplo, ahora, plan, porDefecto, poda, valida, codifica, descodifica, dnOf, ymd } from './regla.js';
+import { renderEditor } from './editor.js';
 
 const $ = id => document.getElementById(id);
 const dayMs = 86400000;
@@ -23,6 +25,18 @@ function load() {
 }
 let store = load();
 function save() { try { localStorage.setItem(KEY, JSON.stringify(store)); } catch (e) {} }
+
+// «Mi regla»: canónico (los oficios de los monjes) o la de cada uno. La regla guardada se valida al
+// cargar; los días cambiados a mano y el caos van aparte porque valida() no los conserva.
+store.vista = store.vista === 'mio' ? 'mio' : 'canonico';
+{
+  const r = store.regla && valida(store.regla);
+  store.regla = r ? { ...r, dias: store.regla.dias || {}, caos: store.regla.caos || null } : ejemplo();
+}
+let rev = 0; // sube con cada cambio de la regla, para repintar
+const regla = () => store.regla;
+function saveRegla() { rev++; save(); }
+const mine = () => store.vista === 'mio';
 const allPlaces = () => [MADRID, ...store.places];
 
 // ---------- Ubicación ----------
@@ -108,7 +122,8 @@ function render(force) {
   const tp = ok ? temporal(ctx.cur, now) : null;
   applyTheme(ok ? ctx.cur.kind === 'day' : ctx.polar === 'day');
   if (peek && Date.now() > peek.until) peek = null;
-  const key = [fmt(now), tp && tp.hour, tp && tp.minute, pl.id, pl.lat, pl.lon, store.mode, geo.status, view, peek && peek.key, store.theme].join('|');
+  const rg = mine() ? ahora(regla(), now, pl.tz) : null;
+  const key = [fmt(now), tp && tp.hour, tp && tp.minute, pl.id, pl.lat, pl.lon, store.mode, geo.status, view, peek && peek.key, store.theme, store.vista, rev, caosAsk].join('|');
   if (!force && key === lastKey) return;
   lastKey = key;
 
@@ -120,25 +135,69 @@ function render(force) {
   const msg = geoMessage(pl);
   $('msg').textContent = msg; $('msg').hidden = !msg;
 
-  const nx = ok ? nextOffice(ctx, now) : null;
+  const nx = !ok ? null : rg ? rg.next : nextOffice(ctx, now);
+  renderReglaBar(rg);
   if (ok) {
-    const isDay = ctx.cur.kind === 'day', p = cyclePos(ctx, now), off = officeAt(p);
-    const base = { day: ctx.day, night: ctx.night, noon: ctx.noon, now, next: nx && nx.name, fmt, times: dialTimes(now, pl.lat, pl.lon, pl.tz) };
+    const isDay = ctx.cur.kind === 'day', p = cyclePos(ctx, now);
+    const base = { day: ctx.day, night: ctx.night, noon: ctx.noon, now, next: nx && nx.name, fmt,
+      ...(rg ? { marks: rg.oficios } : { times: dialTimes(now, pl.lat, pl.lon, pl.tz) }) };
+    const inDay = t => t >= ctx.day.start && t < ctx.day.end;
     // Consultando un oficio o una hora: su horario en el centro, unos segundos.
     const center = peek
       ? { office: peek.name, time: `${fmt(peek.from)} – ${fmt(peek.to)}`, small: true, peek: peek.name, peekHour: peek.hour,
-          isDay: peek.hour ? peek.hour[0] === 'd' : OFFICES.find(x => x.name === peek.name).p < 12,
+          isDay: peek.hour ? peek.hour[0] === 'd' : rg ? inDay(peek.from) : OFFICES.find(x => x.name === peek.name).p < 12,
           sub: (peek.hour ? peek.label + ' · ' : '') + 'dura ' + fmtDur(peek.to - peek.from) }
-      : { office: off.name, time: fmt(now), sub: `hora ${ROM[tp.hour - 1]} · minuto ${tp.minute}`, isDay };
+      : rg && !rg.cur
+        ? { office: 'Caos', time: fmt(now), isDay,
+            sub: isDay ? `quedan ${fmtDur(ctx.cur.end - now)} de luz` : `amanece en ${fmtDur(ctx.cur.end - now)}` }
+        : { office: rg ? rg.cur.name : officeAt(p).name, time: fmt(now), sub: `hora ${ROM[tp.hour - 1]} · minuto ${tp.minute}`, isDay };
     $('dial').innerHTML = dialNatural({ ...base, ...center });
-    $('dial').setAttribute('aria-label', `${off.name}, ${fmt(now)}, hora ${ROM[tp.hour - 1]} ${isDay ? 'del día' : 'de la noche'}, minuto ${tp.minute}`);
+    $('dial').setAttribute('aria-label', `${center.office}, ${fmt(now)}, hora ${ROM[tp.hour - 1]} ${isDay ? 'del día' : 'de la noche'}, minuto ${tp.minute}`);
   } else {
     const title = ctx.polar === 'day' ? 'Sol de medianoche' : ctx.polar === 'night' ? 'Noche polar' : 'Sin medida';
     $('dial').innerHTML = dialNatural({ office: title, time: fmt(now), sub: 'hoy no hay horas temporales', isDay: ctx.polar === 'day', polar: ctx.polar || 'night' });
     $('dial').setAttribute('aria-label', `${title}, ${fmt(now)}`);
   }
 
-  if (view === 'dia') renderDay(ctx, now, pl, nx, fmt);
+  if (view === 'dia') renderDay(ctx, now, pl, nx, fmt, rg);
+}
+
+// Bajo la esfera: canónico o mío y, con la mía, qué toca hoy. Tocar un modo cambia solo hoy; el
+// interruptor de Gym, igual; el caos pide la fecha de vuelta.
+let caosAsk = false;
+function renderReglaBar(rg) {
+  const r = regla();
+  let html = `<div class="seg2" role="group" aria-label="Horario">${[['canonico', 'Canónico'], ['mio', 'Mío']].map(([v, l]) =>
+    `<button data-vista="${v}" aria-pressed="${store.vista === v}">${l}</button>`).join('')}</div>`;
+  if (rg) {
+    const p = rg.plan, def = porDefecto(r, rg.dn);
+    if (p.caos) {
+      html += `<div class="hoy-row"><button class="chip on" data-caos-off>Caos · vuelves el ${esc(fmtDia(p.vuelta))}</button></div>`;
+    } else {
+      const mod = r.modos.map(m => `<button class="chip${m.id === p.modo ? ' on' : ''}" data-hoy="${esc(m.id)}" aria-pressed="${m.id === p.modo}">${esc(m.nombre)}</button>`).join('');
+      html += `<div class="hoy-row">${mod}<button class="chip tog${p.gym ? ' on' : ''}" data-gym aria-pressed="${p.gym}">${esc(r.alterno)}</button><button class="chip${caosAsk ? ' ask' : ''}" data-caos>Caos</button></div>`;
+      if (caosAsk) html += `<div class="caos-ask"><span>¿Hasta cuándo?</span><button class="chip" data-caos-n="1">Mañana</button><input type="date" id="caos-fecha" min="${ymd(rg.dn + 1)}" aria-label="Fecha de vuelta"></div>`;
+      const why = p.origen === 'dia' && (p.modo !== def.modo || p.gym !== def.gym) ? '<button class="link" data-hoy-reset>Volver a lo de siempre</button>'
+        : p.origen === 'temporada' ? `<span>${esc(p.temporada)}</span>` : '';
+      if (why) html += `<div class="today-why">${why}</div>`;
+    }
+  }
+  if ($('regla-bar').innerHTML !== html) $('regla-bar').innerHTML = html;
+}
+const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+const fmtDia = s => { const [, m, d] = s.split('-').map(Number); return `${d} de ${MESES[m - 1]}`; };
+const dnHoy = () => ahora(regla(), new Date(Date.now() + SHIFT), currentPlace().tz).dn;
+function setHoy(change) {
+  const r = regla(), dn = dnHoy(), cur = plan(r, dn), def = porDefecto(r, dn);
+  const next = { modo: cur.modo, gym: cur.gym, ...change };
+  if (next.modo === def.modo && next.gym === def.gym) delete r.dias[ymd(dn)];
+  else r.dias[ymd(dn)] = next;
+  saveRegla(); render(true);
+}
+function setCaos(vuelta) {
+  caosAsk = false;
+  regla().caos = vuelta ? { desde: ymd(dnHoy()), vuelta } : null;
+  saveRegla(); render(true);
 }
 
 function renderChips(pl) {
@@ -149,8 +208,9 @@ function renderChips(pl) {
   }).join('');
 }
 
-function renderDay(ctx, now, pl, nx, fmt) {
+function renderDay(ctx, now, pl, nx, fmt, rg) {
   $('day-title').textContent = pl.kind === 'here' ? 'Hoy, aquí' : 'Hoy en ' + pl.name;
+  $('h-title').textContent = !rg ? 'Horario' : rg.plan.caos ? 'Caos' : 'Mi horario · ' + rg.plan.nombre + (rg.plan.gym ? ' · ' + regla().alterno : '');
   if (ctx.polar) {
     $('f-light').innerHTML = ctx.polar === 'day' ? '24<span class="u">h</span>' : '0<span class="u">h</span>';
     $('f-day').textContent = '—'; $('f-night').textContent = '—';
@@ -159,7 +219,7 @@ function renderDay(ctx, now, pl, nx, fmt) {
     $('f-light').innerHTML = durHTML(ctx.day.end - ctx.day.start) + `<small>sale ${fmt(ctx.day.start)}<br>se pone ${fmt(ctx.day.end)}</small>`;
     $('f-day').innerHTML = durHTML((ctx.day.end - ctx.day.start) / 12);
     $('f-night').innerHTML = ctx.night ? durHTML((ctx.night.end - ctx.night.start) / 12) : '—';
-    $('hours').innerHTML = todayOffices(ctx).map(o => {
+    $('hours').innerHTML = rg ? dayRegla(rg, now, fmt, ctx) : todayOffices(ctx).map(o => {
       const past = o.t && o.t <= now, isN = nx && o.t && nx.t.getTime() === o.t.getTime();
       return `<li class="k-${o.kind}${past ? ' past' : ''}${isN ? ' next' : ''}"><span class="n">${o.name}${isN ? '<span class="tag">siguiente</span>' : ''}</span><span class="t">${o.t ? fmt(o.t) : '—'}</span></li>`;
     }).join('');
@@ -210,6 +270,17 @@ function renderYear(year, mo, da, pl) {
   $('year').innerHTML = s;
 }
 
+// Mi horario de hoy, en la vista Día: cada oficio con su hora; el de día en oro, el de noche en azul.
+function dayRegla(rg, now, fmt, ctx) {
+  if (!rg.cur) return `<li class="empty">Sin oficios hasta el ${esc(fmtDia(rg.plan.vuelta))}: solo la luz.</li>`;
+  return rg.oficios.map((o, i) => {
+    const end = i + 1 < rg.oficios.length ? rg.oficios[i + 1].t : rg.fin;
+    const past = end <= now, isN = rg.next && o.t.getTime() === rg.next.t.getTime();
+    const k = o.t >= ctx.day.start && o.t < ctx.day.end ? 'd' : 'n';
+    return `<li class="k-${k}${past ? ' past' : ''}${isN ? ' next' : ''}"><span class="n">${esc(o.name)}${isN ? '<span class="tag">siguiente</span>' : ''}</span><span class="t">${fmt(o.t)}</span></li>`;
+  }).join('');
+}
+
 // ---------- Lugares ----------
 
 function renderPlaces() {
@@ -234,10 +305,11 @@ function setMode(id) {
 
 function showView(v) {
   view = v;
-  for (const id of ['reloj', 'dia', 'lugares']) $('v-' + id).hidden = id !== v;
+  for (const id of ['reloj', 'dia', 'regla', 'lugares']) $('v-' + id).hidden = id !== v;
   document.querySelectorAll('.tabs button').forEach(b => b.setAttribute('aria-current', b.dataset.v === v ? 'page' : 'false'));
-  $('chips').hidden = v === 'lugares';
+  $('chips').hidden = v === 'lugares' || v === 'regla';
   if (v === 'lugares') { startGeo(); renderPlaces(); }
+  if (v === 'regla') editor();
   yearKey = '';
   render(true);
   window.scrollTo(0, 0);
@@ -247,6 +319,7 @@ let undo = null, undoTimer = null;
 function toast(text, action) {
   $('toast-text').textContent = text;
   $('toast').hidden = false;
+  $('toast-undo').hidden = !action;
   undo = action;
   clearTimeout(undoTimer);
   undoTimer = setTimeout(() => { $('toast').hidden = true; undo = null; }, 6000);
@@ -266,6 +339,13 @@ document.addEventListener('click', ev => {
     toast(`Quitado: ${gone.name}`, () => { store.places.splice(i, 0, gone); if (wasMode) store.mode = gone.id; save(); renderPlaces(); render(true); });
     return;
   }
+  if (b.dataset.vista) { store.vista = b.dataset.vista; caosAsk = false; save(); render(true); return; }
+  if (b.dataset.hoy) { setHoy({ modo: b.dataset.hoy }); return; }
+  if ('gym' in b.dataset) { setHoy({ gym: !plan(regla(), dnHoy()).gym }); return; }
+  if ('hoyReset' in b.dataset) { delete regla().dias[ymd(dnHoy())]; saveRegla(); render(true); return; }
+  if ('caos' in b.dataset) { caosAsk = !caosAsk; render(true); return; }
+  if (b.dataset.caosN) { setCaos(ymd(dnHoy() + +b.dataset.caosN)); return; }
+  if ('caosOff' in b.dataset) { const old = regla().caos; setCaos(null); toast('Caos quitado', () => { regla().caos = old; saveRegla(); render(true); }); return; }
   if (b.id === 'theme') { store.theme = THEME_ORDER[(THEME_ORDER.indexOf(store.theme || 'sol') + 1) % 3]; save(); render(true); return; }
   if (b.id === 'toast-undo') { if (undo) undo(); undo = null; $('toast').hidden = true; return; }
   if (b.id === 'use-here') { setMode('here'); showView('reloj'); return; }
@@ -288,7 +368,8 @@ function peekAt(target, ms) {
     const kind = h.dataset.h[0] === 'd' ? 'day' : 'night', i = +h.dataset.h.slice(1), pl = currentPlace();
     const span = hourSpan(new Date(Date.now() + SHIFT), pl.lat, pl.lon, pl.tz, kind, i);
     if (!span) return false;
-    peek = { key, hour: h.dataset.h, name: officeAt((kind === 'day' ? 0 : 12) + i + 0.5).name, ...span,
+    const mid = new Date((span.from.getTime() + span.to.getTime()) / 2), rg = mine() && ahora(regla(), mid, pl.tz);
+    peek = { key, hour: h.dataset.h, name: rg ? (rg.cur ? rg.cur.name : 'Caos') : officeAt((kind === 'day' ? 0 : 12) + i + 0.5).name, ...span,
       label: `hora ${ROM[i]}` };
   } else {
     peek = { key, name: h.dataset.o, from: new Date(+h.dataset.from), to: new Date(+h.dataset.to) };
@@ -311,6 +392,45 @@ $('save-form').addEventListener('submit', ev => {
   save(); renderPlaces(); render(true);
   toast(`Guardado: ${name}`, () => { store.places = store.places.filter(p => p.id !== id); if (store.mode === id) store.mode = 'here'; save(); renderPlaces(); render(true); });
 });
+
+document.addEventListener('change', ev => {
+  if (ev.target.id === 'caos-fecha' && ev.target.value) setCaos(ev.target.value);
+});
+
+// ---------- La regla: editor y copia por enlace ----------
+
+function editor() {
+  renderEditor($('v-regla'), regla(), {
+    save: () => { saveRegla(); render(true); },
+    toast,
+    link: () => location.href.split('#')[0] + '#regla=' + codifica(regla()),
+    importa: txt => {
+      const m = /regla=([\w-]+)/.exec(txt);
+      let r = m ? descodifica(m[1]) : null;
+      if (!m) try { r = valida(JSON.parse(txt)); } catch (e) {}
+      if (r) setRegla(r, 'Regla importada');
+      return !!r;
+    },
+    ejemplo: () => setRegla(ejemplo(), 'Puesta la regla de ejemplo')
+  });
+}
+function setRegla(r, msg) {
+  const old = store.regla, back = () => { store.regla = old; saveRegla(); render(true); if (view === 'regla') editor(); };
+  store.regla = r; saveRegla(); render(true);
+  if (view === 'regla') editor();
+  toast(msg, back);
+}
+
+// Abrir un enlace con #regla=… la importa (con Deshacer) y pasa a «Mío».
+function importHash() {
+  const m = /^#regla=([\w-]+)$/.exec(location.hash);
+  if (!m) return;
+  history.replaceState(null, '', location.pathname + location.search);
+  const r = descodifica(m[1]);
+  if (!r) { const e = $('msg'); e.textContent = 'El enlace de la regla no es válido.'; e.hidden = false; return; }
+  store.vista = 'mio';
+  setRegla(r, 'Regla importada');
+}
 
 let results = [];
 $('search-form').addEventListener('submit', async ev => {
@@ -338,7 +458,10 @@ $('search-form').addEventListener('submit', async ev => {
 
 window.addEventListener('error', e => { const m = $('msg'); m.textContent = 'Error: ' + e.message; m.hidden = false; });
 if (store.mode === 'here') startGeo();
+poda(store.regla, dnOf(ymdIn(new Date(Date.now() + SHIFT), currentPlace().tz))); save();
 showView('reloj');
+importHash();
+window.addEventListener('hashchange', importHash);
 setInterval(render, 1000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) render(true); });
 // En local no se registra: el caché del service worker serviría la versión vieja mientras se edita.

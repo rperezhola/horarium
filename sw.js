@@ -1,7 +1,7 @@
 // Service worker: guarda la app entera para que abra sin red. Subir V en cada cambio publicado.
-const V = 'horarium-2';
+const V = 'horarium-3';
 const SHELL = [
-  './', 'index.html', 'style.css', 'app.js', 'sun.js', 'dial.js', 'manifest.webmanifest',
+  './', 'index.html', 'style.css', 'app.js', 'sun.js', 'dial.js', 'regla.js', 'editor.js', 'manifest.webmanifest',
   'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-180.png', 'icons/icon-maskable-512.png',
   'fonts/alegreya.woff2', 'fonts/alegreya-italic.woff2', 'fonts/alegreya-sc-500.woff2', 'fonts/alegreya-sc-700.woff2',
   'fonts/alegreya-sans-400.woff2', 'fonts/alegreya-sans-700.woff2'

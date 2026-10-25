@@ -38,8 +38,10 @@ function place(items, r) {
   return done;
 }
 
-// Ancho de los nombres en la esfera (Alegreya SC 500 a 14), medido en Chrome.
+// Ancho de los nombres en la esfera (Alegreya SC 500 a 14), medido en Chrome. Los de la regla de cada
+// uno se estiman: unos 8,2 por letra y 4 por espacio.
 const LAB_W = { Prima: 41, Tercia: 46, Sexta: 40, Nona: 37, 'Vísperas': 61, Completas: 74, Maitines: 63, Laudes: 49 };
+const labW = n => LAB_W[n] || [...n].reduce((w, c) => w + (c === ' ' ? 4 : 8.2), 0);
 
 // Números romanos de las horas, en Alegreya 600 a 11: ancho aproximado por letra (I estrecha, V y X anchas).
 const ROM = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
@@ -51,7 +53,8 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;',
 // verdad. La aguja gira a ritmo constante; lo que cambia con la estación es el tamaño de las horas:
 // en invierno el arco de luz se encoge y en verano crece. Cada oficio y cada hora son tocables: los
 // oficios llevan data-o, data-from y data-to (ms) y las horas data-h, para que la app enseñe su horario.
-// o = { day, night, noon, now, office, time, sub, isDay, next, polar, times, peek, peekHour, small }
+// o = { day, night, noon, now, office, time, sub, isDay, next, polar, times, peek, peekHour, small, marks }
+// marks: oficios propios [{ name, t }] en orden (la regla de cada uno); sin él, los ocho de los monjes.
 // times: inicio a enseñar por oficio (ver dialTimes); sin él, el del tramo dibujado.
 // peek: oficio que se está consultando (se resalta su nombre); peekHour: hora consultada ('d0'…'n11'),
 // que se levanta en el anillo; small: la línea de la hora, más pequeña.
@@ -86,7 +89,7 @@ export function dialNatural(o, id = 'n') {
     }
     s += nowPath + nums;
 
-    const marks = OFFICES.map(x => ({ name: x.name, t: x.p < 12 ? at(o.day, x.p / 12) : at(o.night, (x.p - 12) / 12) })).filter(x => x.t);
+    const marks = (o.marks || OFFICES.map(x => ({ name: x.name, t: x.p < 12 ? at(o.day, x.p / 12) : at(o.night, (x.p - 12) / 12) }))).filter(x => x.t).map(x => ({ ...x }));
     marks.forEach((x, i) => { x.a = ang(x.t); x.sw = sweep(x.a, ang(marks[(i + 1) % marks.length].t)); x.i = i; });
 
     // Divisorias de los oficios y horizonte (salida y puesta), solo sobre el anillo.
@@ -101,11 +104,12 @@ export function dialNatural(o, id = 'n') {
 
     // Nombres, centrados en su tramo: pueden desbordarlo, pero si chocan con un vecino se omiten
     // (cuando el día se comprime, como en Tromsø). Primero el oficio en curso, luego los tramos anchos.
-    const hl = o.peek || o.office, dayName = n => OFFICES.find(x => x.name === n).p < 12;
-    const names = place(marks.map(x => ({ ...x, a: x.a + x.sw / 2, w: LAB_W[x.name], pri: x.name === hl ? -1000 : -x.sw })), R.name);
+    // De día o de noche según dónde empieza: dentro o fuera del arco de luz.
+    const hl = o.peek || o.office, d0 = ang(o.day.start), dLen = sweep(d0, ang(o.day.end));
+    const names = place(marks.map(x => ({ ...x, a: x.a + x.sw / 2, w: labW(x.name), pri: x.name === hl ? -1000 : -x.sw })), R.name);
     for (const x of names) {
-      const cls = 'o-lab' + (x.name === hl ? (dayName(x.name) ? ' cur day' : ' cur') : '');
-      s += curved(`${id}-o${x.i}`, R.name, x.a, cls, x.name);
+      const cls = 'o-lab' + (x.name === hl ? (sweep(d0, x.a - x.sw / 2) < dLen ? ' cur day' : ' cur') : '');
+      s += curved(`${id}-o${x.i}`, R.name, x.a, cls, esc(x.name));
     }
 
     const a = ang(o.now), [hx0, hy0] = P(R.hand0, a), [hx1, hy1] = P(R.nowOut, a);
@@ -126,11 +130,13 @@ export function dialNatural(o, id = 'n') {
       const nx = marks[(i + 1) % marks.length], from = ((o.times && o.times[x.name]) || x.t).getTime();
       const nt = o.times && o.times[nx.name] && o.times[nx.name].getTime();
       const to = nt > from ? nt : from + (nx.t - x.t + dayMs) % dayMs;
-      s += `<path class="hit" data-o="${x.name}" data-from="${from}" data-to="${to}" d="${sector(R.nowOut + 2, R.face, x.a, x.a + x.sw)}"><title>${x.name}</title></path>`;
+      s += `<path class="hit" data-o="${esc(x.name)}" data-from="${from}" data-to="${to}" d="${sector(R.nowOut + 2, R.face, x.a, x.a + x.sw)}"><title>${esc(x.name)}</title></path>`;
     });
   }
 
-  s += `<text class="c-office${o.isDay ? ' day' : ''}${live ? '' : ' small'}" x="${C}" y="${C - 14}">${esc(o.office)}</text>`;
+  // Un nombre largo (los de la regla de cada uno) se achica para caber dentro del anillo.
+  const fs = Math.min(live ? 28 : 22, 160 / labW(o.office) * 14);
+  s += `<text class="c-office${o.isDay ? ' day' : ''}${live ? '' : ' small'}" x="${C}" y="${C - 14}"${fs < (live ? 28 : 22) ? ` style="font-size:${fs.toFixed(1)}px"` : ''}>${esc(o.office)}</text>`;
   s += `<text class="c-time${o.small ? ' small' : ''}" x="${C}" y="${C + 24}">${esc(o.time)}</text>`;
   s += `<text class="c-sub" x="${C}" y="${C + 47}">${esc(o.sub)}</text>`;
   return s;
