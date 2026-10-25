@@ -1,4 +1,4 @@
-import { OFFICES, buildCtx, temporal, cyclePos, officeAt, todayOffices, nextOffice, dialTimes, sunTimes, solarNoon, ymdIn } from './sun.js';
+import { OFFICES, buildCtx, temporal, cyclePos, officeAt, todayOffices, nextOffice, dialTimes, hourSpan, sunTimes, solarNoon, ymdIn } from './sun.js';
 import { dialNatural } from './dial.js';
 
 const $ = id => document.getElementById(id);
@@ -89,7 +89,7 @@ function render(force) {
   const ok = !ctx.polar && ctx.cur;
   const tp = ok ? temporal(ctx.cur, now) : null;
   if (peek && Date.now() > peek.until) peek = null;
-  const key = [fmt(now), tp && tp.hour, tp && tp.minute, pl.id, pl.lat, pl.lon, store.mode, geo.status, view, store.showTimes, peek && peek.name].join('|');
+  const key = [fmt(now), tp && tp.hour, tp && tp.minute, pl.id, pl.lat, pl.lon, store.mode, geo.status, view, store.showTimes, peek && peek.key].join('|');
   if (!force && key === lastKey) return;
   lastKey = key;
 
@@ -105,10 +105,13 @@ function render(force) {
   if (ok) {
     const isDay = ctx.cur.kind === 'day', p = cyclePos(ctx, now), off = officeAt(p);
     const base = { day: ctx.day, night: ctx.night, noon: ctx.noon, now, next: nx && nx.name, fmt, times: dialTimes(now, pl.lat, pl.lon, pl.tz), showTimes: !!store.showTimes };
-    // Consultando un oficio: su horario en el centro, unos segundos.
+    // Consultando un oficio o una hora: su horario en el centro, unos segundos.
+    const live = peek && now >= peek.from && now < peek.to;
     const center = peek
-      ? { office: peek.name, time: `${fmt(peek.from)} – ${fmt(peek.to)}`, small: true, isDay: OFFICES.find(x => x.name === peek.name).p < 12, peek: peek.name,
-          sub: now >= peek.from && now < peek.to ? `en curso · quedan ${fmtDur(peek.to - now)}` : now < peek.from ? `empieza en ${fmtDur(peek.from - now)}` : `dura ${fmtDur(peek.to - peek.from)}` }
+      ? { office: peek.name, time: `${fmt(peek.from)} – ${fmt(peek.to)}`, small: true, peek: peek.name, peekHour: peek.hour,
+          isDay: peek.hour ? peek.hour[0] === 'd' : OFFICES.find(x => x.name === peek.name).p < 12,
+          sub: peek.hour ? peek.label + (live ? ' · ahora' : '')
+            : live ? `en curso · quedan ${fmtDur(peek.to - now)}` : `empieza en ${fmtDur(peek.from - now)}` }
       : { office: off.name, time: fmt(now), sub: `hora ${ROM[tp.hour - 1]} · minuto ${tp.minute}`, isDay };
     $('dial').innerHTML = dialNatural({ ...base, ...center });
     $('dial').setAttribute('aria-label', `${off.name}, ${fmt(now)}, hora ${ROM[tp.hour - 1]} ${isDay ? 'del día' : 'de la noche'}, minuto ${tp.minute}`);
@@ -263,12 +266,23 @@ document.addEventListener('click', ev => {
   }
 });
 
-// Consultar un oficio: tocarlo (5 s en el centro) o, con ratón, pasar por encima.
+// Consultar en la esfera: tocar (5 s en el centro) o, con ratón, pasar por encima. Por fuera del
+// anillo, el oficio entero; sobre el anillo, solo esa hora temporal.
 function peekAt(target, ms) {
   const h = target.closest && target.closest('.hit');
   if (!h) return false;
-  if (peek && peek.name === h.dataset.o) { peek.until = Date.now() + ms; return true; }
-  peek = { name: h.dataset.o, from: new Date(+h.dataset.from), to: new Date(+h.dataset.to), until: Date.now() + ms };
+  const key = h.dataset.h ? 'h:' + h.dataset.h : 'o:' + h.dataset.o;
+  if (peek && peek.key === key) { peek.until = Date.now() + ms; return true; }
+  if (h.dataset.h) {
+    const kind = h.dataset.h[0] === 'd' ? 'day' : 'night', i = +h.dataset.h.slice(1), pl = currentPlace();
+    const span = hourSpan(new Date(Date.now() + SHIFT), pl.lat, pl.lon, pl.tz, kind, i);
+    if (!span) return false;
+    peek = { key, hour: h.dataset.h, name: officeAt((kind === 'day' ? 0 : 12) + i + 0.5).name, ...span,
+      label: `hora ${ROM[i]} ${kind === 'day' ? 'del día' : 'de la noche'}` };
+  } else {
+    peek = { key, name: h.dataset.o, from: new Date(+h.dataset.from), to: new Date(+h.dataset.to) };
+  }
+  peek.until = Date.now() + ms;
   render(true);
   return true;
 }

@@ -53,7 +53,8 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;',
 // lleva data-o, data-from y data-to (ms) para que la app enseñe su horario en el centro.
 // o = { day, night, noon, now, office, time, sub, isDay, next, polar, fmt, times, showTimes, peek, small }
 // times: hora a enseñar por oficio y para 'ocaso' (ver dialTimes); sin él, la del tramo dibujado.
-// peek: oficio que se está consultando (se resalta su nombre); small: la línea de la hora, más pequeña.
+// peek: oficio que se está consultando (se resalta su nombre); peekHour: hora consultada ('d0'…'n11'),
+// que se levanta en el anillo; small: la línea de la hora, más pequeña.
 export function dialNatural(o, id = 'n') {
   const R = o.showTimes ? R_TIMES : R_CLEAN;
   const ang = t => norm((t - o.noon) / dayMs * 360);
@@ -65,15 +66,16 @@ export function dialNatural(o, id = 'n') {
     const k = o.polar === 'day' ? 'd0' : 'n0';
     s += `<path class="seg ${k}" d="${sector(R.ring0, R.ring1, 0, 180)}"/><path class="seg ${k}" d="${sector(R.ring0, R.ring1, 180, 360)}"/>`;
   } else {
-    let nowPath = '';
+    let nowPath = '', hourHits = '';
     for (const seg of [o.day, o.night]) {
       if (!seg) continue;
       const k = seg.kind === 'day' ? 'd' : 'n', hm = (seg.end - seg.start) / 12;
       for (let i = 0; i < 12; i++) {
         const a = seg.start.getTime() + i * hm, b = a + hm, a0 = ang(a), sw = sweep(a0, ang(b));
-        const now = o.now >= a && o.now < b;
-        const p = `<path class="seg ${k}${i % 2}${now ? ' now' : ''}" d="${sector(R.ring0, now ? R.nowOut : R.ring1, a0, a0 + sw)}"/>`;
-        if (now) nowPath = p; else s += p;
+        const now = o.now >= a && o.now < b, pk = o.peekHour === k + i;
+        const p = `<path class="seg ${k}${i % 2}${now ? ' now' : ''}${pk ? ' peek' : ''}" d="${sector(R.ring0, now || pk ? R.nowOut : R.ring1, a0, a0 + sw)}"/>`;
+        if (now || pk) nowPath += p; else s += p;
+        hourHits += `<path class="hit" data-h="${k}${i}" d="${sector(R.mark0 - 6, R.nowOut + 2, a0, a0 + sw)}"/>`;
       }
     }
     s += nowPath;
@@ -118,14 +120,15 @@ export function dialNatural(o, id = 'n') {
     const a = ang(o.now), [hx0, hy0] = P(R.hand0, a), [hx1, hy1] = P(R.nowOut, a);
     s += `<line class="hand" x1="${f(hx0)}" y1="${f(hy0)}" x2="${f(hx1)}" y2="${f(hy1)}"/><circle class="hand-dot" cx="${f(hx0)}" cy="${f(hy0)}" r="4.5"/>`;
 
-    // Zonas tocables, una por tramo de oficio, encima de todo.
+    // Zonas tocables, encima de todo: cada hora temporal en el anillo y cada oficio entero por fuera.
+    s += hourHits;
     marks.forEach((x, i) => {
       // Fin: la hora del oficio siguiente si viene después; si no (el siguiente es el que está en curso
       // y su hora es la de comienzo, ya pasada), el inicio más lo que dura el tramo dibujado.
       const nx = marks[(i + 1) % marks.length], from = ((o.times && o.times[x.name]) || x.t).getTime();
       const nt = o.times && o.times[nx.name] && o.times[nx.name].getTime();
       const to = nt > from ? nt : from + (nx.t - x.t + dayMs) % dayMs;
-      s += `<path class="hit" data-o="${x.name}" data-from="${from}" data-to="${to}" d="${sector(R.mark0 - 6, R.face, x.a, x.a + x.sw)}"><title>${x.name}</title></path>`;
+      s += `<path class="hit" data-o="${x.name}" data-from="${from}" data-to="${to}" d="${sector(R.nowOut + 2, R.face, x.a, x.a + x.sw)}"><title>${x.name}</title></path>`;
     });
   }
 

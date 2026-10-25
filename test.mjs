@@ -1,6 +1,6 @@
 // Pruebas del cálculo: node test.mjs
 import assert from 'node:assert/strict';
-import { buildCtx, cyclePos, officeAt, todayOffices, nextOffice, dialTimes } from './sun.js';
+import { buildCtx, cyclePos, officeAt, todayOffices, nextOffice, dialTimes, hourSpan } from './sun.js';
 import { dialNatural } from './dial.js';
 
 const MAD = [40.4168, -3.7038, 'Europe/Madrid'];
@@ -94,3 +94,13 @@ const near = (d, hhmm, tol = 3, tz) => {
 }
 
 console.log('ok');
+
+// Hora temporal consultada: la en curso o la próxima (antes del amanecer, la 1.ª del día es la de hoy).
+{
+  const now = new Date('2026-10-25T05:53:00Z');
+  const h = hourSpan(now, ...MAD, 'day', 0);
+  near(h.from, '07:37'); assert.ok(h.to - h.from > 50 * 60000 && h.to - h.from < 56 * 60000);
+  const n = hourSpan(now, ...MAD, 'night', 11);
+  assert.ok(n.from <= now && n.to > now);
+}
+console.log('ok horas');

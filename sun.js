@@ -111,6 +111,18 @@ export function dialTimes(now, lat, lon, tz) {
   return out;
 }
 
+// Inicio y fin de la hora temporal i (0-11) del día o de la noche: la que está en curso o la próxima.
+export function hourSpan(now, lat, lon, tz, kind, i) {
+  for (const k of [-1, 0, 1]) {
+    const c = buildCtx(new Date(now.getTime() + k * dayMs), lat, lon, tz);
+    const s = c.polar ? null : kind === 'day' ? c.day : c.nightNext;
+    if (!s) continue;
+    const hm = (s.end - s.start) / 12, from = new Date(s.start.getTime() + i * hm), to = new Date(from.getTime() + hm);
+    if (to > now) return { from, to };
+  }
+  return null;
+}
+
 // Siguiente oficio después de `now`, aunque caiga en la noche siguiente.
 export function nextOffice(ctx, now) {
   const cands = todayOffices(ctx).concat(
