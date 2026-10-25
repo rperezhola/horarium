@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Horarium · Tu hora natural</title>
+<meta name="description" content="Tu hora natural: las horas temporales y los oficios de los monjes, aquí y ahora.">
+<meta name="theme-color" content="#ECEEF2" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0D121E" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="stylesheet" href="style.css">
+<script type="module" src="app.js"></script>
+</head>
+<body>
+<header class="bar">
+  <div class="id">
+    <p class="brand">Horarium</p>
+    <p class="where" id="where">&nbsp;</p>
+  </div>
+  <p class="date" id="date">&nbsp;</p>
+</header>
+
+<main>
+  <section id="v-reloj" class="view">
+    <svg id="dial" class="dial" viewBox="0 0 320 320" role="img" aria-label="Reloj de horas temporales"></svg>
+    <p class="next" id="next">&nbsp;</p>
+    <p class="msg" id="msg" hidden></p>
+  </section>
+
+  <section id="v-dia" class="view" hidden>
+    <h2 id="day-title">Hoy</h2>
+    <dl class="facts">
+      <div><dt>Luz</dt><dd id="f-light">—</dd></div>
+      <div class="f-day"><dt>Hora de día</dt><dd id="f-day">—</dd></div>
+      <div class="f-night"><dt>Hora de noche</dt><dd id="f-night">—</dd></div>
+    </dl>
+    <h2>Horario</h2>
+    <ol class="hours" id="hours"></ol>
+    <h2>En 24 horas de reloj</h2>
+    <svg id="dial24" class="dial small" viewBox="0 0 320 320" role="img" aria-label="Horas temporales sobre las 24 horas de reloj"></svg>
+    <h2>A lo largo del año</h2>
+    <p class="legend"><span><i class="sw"></i>Hora de día</span><span><i class="sw n"></i>Hora de noche</span><span><i class="sw r"></i>Hora de reloj</span></p>
+    <svg id="year" class="chart" viewBox="0 0 420 240" role="img" aria-label="Duración de las horas temporales a lo largo del año"></svg>
+    <p class="note" id="chart-cap">&nbsp;</p>
+  </section>
+
+  <section id="v-lugares" class="view" hidden>
+    <h2>Aquí</h2>
+    <p class="note" id="geo-status"></p>
+    <button class="wide" id="use-here">Usar mi ubicación</button>
+
+    <h2>Buscar ciudad</h2>
+    <form id="search-form" class="row">
+      <input id="q" type="search" placeholder="Sevilla, Oslo, Roma…" autocomplete="off" enterkeyhint="search" aria-label="Ciudad">
+      <button type="submit">Buscar</button>
+    </form>
+    <p class="err" id="search-err" hidden></p>
+    <ul class="places" id="results"></ul>
+
+    <h2>Guardar dónde estoy</h2>
+    <form id="save-form" class="row">
+      <input id="save-name" placeholder="Casa, el pueblo…" autocomplete="off" aria-label="Nombre del sitio">
+      <button type="submit" id="save-here">Guardar</button>
+    </form>
+
+    <h2>Lugares</h2>
+    <ul class="places" id="saved"></ul>
+  </section>
+</main>
+
+<div class="toast" id="toast" hidden><span id="toast-text"></span><button id="toast-undo">Deshacer</button></div>
+
+<nav class="dock">
+  <div class="chips" id="chips"></div>
+  <div class="tabs">
+    <button data-v="reloj">Reloj</button>
+    <button data-v="dia">Día</button>
+    <button data-v="lugares">Lugares</button>
+  </div>
+</nav>
+</body>
+</html>
