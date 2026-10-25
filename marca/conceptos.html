@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Horarium · conceptos de marca</title>
+<style>
+@font-face { font-family: "Alegreya"; src: url(../fonts/alegreya.woff2) format("woff2"); font-weight: 400 900; font-style: normal; }
+@font-face { font-family: "Alegreya SC"; src: url(../fonts/alegreya-sc-700.woff2) format("woff2"); font-weight: 700; }
+@font-face { font-family: "Alegreya Sans"; src: url(../fonts/alegreya-sans-400.woff2) format("woff2"); font-weight: 400; }
+:root { --bg: #ECEEF2; --ink: #19202F; --muted: #586276; --gold: #9E6F16; --lapis: #2A4396; --night: #0D121E; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.4 "Alegreya Sans", sans-serif; }
+main { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; }
+section { padding: 28px 24px 32px; border-right: 1px solid #C6CDD9; }
+section:last-child { border-right: 0; }
+h2 { font: 700 16px "Alegreya SC", serif; letter-spacing: .08em; color: #A3302A; margin: 0 0 2px; }
+.why { color: var(--muted); margin: 0 0 18px; min-height: 64px; }
+.big { width: 100%; max-width: 220px; display: block; margin: 0 auto 18px; }
+.lock { display: flex; align-items: center; gap: 12px; padding: 16px; border-radius: 12px; margin-bottom: 10px; }
+.lock.light { background: #fff; }
+.lock.dark { background: var(--night); color: #E7E4DA; }
+.lock svg { width: 52px; height: 52px; flex: none; }
+.wm { font: 700 25px "Alegreya SC", serif; letter-spacing: .12em; line-height: 1; }
+.tag { font: italic 400 15px "Alegreya", serif; color: var(--muted); margin-top: 4px; letter-spacing: .01em; }
+.dark .tag { color: #9BA3B5; }
+.icons { display: flex; align-items: end; gap: 14px; margin-top: 14px; }
+.icons svg { display: block; }
+.icons span { font-size: 12px; color: var(--muted); display: block; text-align: center; margin-top: 4px; }
+</style>
+</head>
+<body>
+<main id="m"></main>
+<script>
+const G = '#DBAF52', G2 = '#9E6F16', L = '#2A4396', L2 = '#7A8FDE', N = '#0D121E', P = '#E7E4DA';
+let uid = 0;
+
+// Cada concepto: la marca sobre un fondo dado (para el icono va sobre la noche).
+const C = {
+  arco: {
+    name: 'I · El horizonte',
+    why: 'Un círculo partido por un horizonte que no pasa por el centro: la luz y la noche nunca son iguales. Es la esfera de la app, reducida a su idea.',
+    mark: (bg, day = G, night = L) => { const id = 'c' + uid++; return `
+      <clipPath id="${id}"><circle cx="50" cy="50" r="34"/></clipPath>
+      <g clip-path="url(#${id})"><rect width="100" height="43" fill="${day}"/><rect y="43" width="100" height="57" fill="${night}"/></g>
+      <line x1="8" y1="43" x2="92" y2="43" stroke="${bg}" stroke-width="3.2"/>`; }
+  },
+  ventana: {
+    name: 'II · La ventana',
+    why: 'El arco de medio punto de un claustro románico. Dentro, el cielo: arriba el día, abajo la noche. Monasterio y hora en una sola silueta.',
+    mark: (bg, day = G, night = L) => { const id = 'c' + uid++; return `
+      <clipPath id="${id}"><path d="M29 84 V46 A21 21 0 0 1 71 46 V84 Z"/></clipPath>
+      <g clip-path="url(#${id})"><rect width="100" height="57" fill="${day}"/><rect y="57" width="100" height="43" fill="${night}"/></g>
+      <line x1="20" y1="57" x2="80" y2="57" stroke="${bg}" stroke-width="3.2"/>`; }
+  },
+  ticks: {
+    name: 'III · Doce y doce',
+    why: 'Veinticuatro marcas: doce de luz apretadas arriba y doce de noche abiertas abajo. Se ve que las horas cambian de tamaño. Fino, de relojero.',
+    mark: (bg, day = G, night = L, ink = P) => {
+      let s = '';
+      const dayArc = 150, a0 = -dayArc / 2;
+      const tick = (a, c) => { const r = a * Math.PI / 180, x0 = 50 + 26 * Math.sin(r), y0 = 50 - 26 * Math.cos(r), x1 = 50 + 38 * Math.sin(r), y1 = 50 - 38 * Math.cos(r); return `<line x1="${x0.toFixed(2)}" y1="${y0.toFixed(2)}" x2="${x1.toFixed(2)}" y2="${y1.toFixed(2)}" stroke="${c}" stroke-width="3.6" stroke-linecap="round"/>`; };
+      for (let i = 0; i < 12; i++) s += tick(a0 + (i + .5) * dayArc / 12, day);
+      for (let i = 0; i < 12; i++) s += tick(dayArc / 2 + (i + .5) * (360 - dayArc) / 12, night);
+      const r = -38 * Math.PI / 180;
+      s += `<line x1="50" y1="50" x2="${(50 + 21 * Math.sin(r)).toFixed(2)}" y2="${(50 - 21 * Math.cos(r)).toFixed(2)}" stroke="${ink}" stroke-width="3.4" stroke-linecap="round"/><circle cx="50" cy="50" r="4" fill="${ink}"/>`;
+      return s;
+    }
+  },
+  sol: {
+    name: 'IV · El sol que sale',
+    why: 'Medio sol de oro sobre el horizonte y su reflejo azul, cada vez más corto, debajo. Pocas formas, mucha calma.',
+    mark: (bg, day = G, night = L) => `
+      <path d="M22 50 A28 28 0 0 1 78 50 Z" fill="${day}"/>
+      <rect x="22" y="55" width="56" height="5.5" rx="2.75" fill="${night}"/>
+      <rect x="30" y="65" width="40" height="5.5" rx="2.75" fill="${night}"/>
+      <rect x="39" y="75" width="22" height="5.5" rx="2.75" fill="${night}"/>`
+  }
+};
+
+const svg = (inner, size, bg, rounded, cls = '') => `<svg class="${cls}" viewBox="0 0 100 100" width="${size}" height="${size}">${bg ? `<rect width="100" height="100" rx="${rounded ? 22 : 0}" fill="${bg}"/>` : ''}${inner}</svg>`;
+
+document.getElementById('m').innerHTML = Object.values(C).map(c => `
+  <section>
+    <h2>${c.name}</h2>
+    <p class="why">${c.why}</p>
+    ${svg(c.mark('#ECEEF2', G2, L, '#19202F'), 220, null, false, 'big')}
+    <div class="lock light">${svg(c.mark('#FFFFFF', G2, L, '#19202F'), 52)}<div><div class="wm">Horarium</div><div class="tag">Tu hora natural</div></div></div>
+    <div class="lock dark">${svg(c.mark(N, G, L2), 52)}<div><div class="wm">Horarium</div><div class="tag">Tu hora natural</div></div></div>
+    <div class="icons">
+      <div>${svg(c.mark(N, G, L2), 96, N, true)}<span>icono</span></div>
+      <div>${svg(c.mark(N, G, L2), 48, N, true)}<span>48</span></div>
+      <div>${svg(c.mark(N, G, L2), 24, N, true)}<span>24</span></div>
+    </div>
+  </section>`).join('');
+</script>
+</body>
+</html>

@@ -1,6 +1,7 @@
 /* Horarium. Oro = día, lapislázuli = noche, rojo de rúbrica para la marca y el oficio siguiente. */
 
 @font-face { font-family: "Alegreya"; src: url(fonts/alegreya.woff2) format("woff2"); font-weight: 400 900; font-display: swap; }
+@font-face { font-family: "Alegreya"; src: url(fonts/alegreya-italic.woff2) format("woff2"); font-weight: 400 900; font-style: italic; font-display: swap; }
 @font-face { font-family: "Alegreya SC"; src: url(fonts/alegreya-sc-500.woff2) format("woff2"); font-weight: 500; font-display: swap; }
 @font-face { font-family: "Alegreya SC"; src: url(fonts/alegreya-sc-700.woff2) format("woff2"); font-weight: 700; font-display: swap; }
 @font-face { font-family: "Alegreya Sans"; src: url(fonts/alegreya-sans-400.woff2) format("woff2"); font-weight: 400; font-display: swap; }
@@ -44,7 +45,11 @@ p { margin: 0; }
   padding: calc(14px + env(safe-area-inset-top, 0px)) 16px 4px;
 }
 .id { min-width: 0; }
-.brand { font: 700 15px/1.2 var(--f-sc); letter-spacing: .08em; color: var(--rubric); }
+.brand { font: 700 15px/1.2 var(--f-sc); letter-spacing: .08em; color: var(--rubric); cursor: default; outline: none; }
+/* El lema aparece al pasar por encima (o al tocar) de la marca. */
+.motto { font: italic 400 15px var(--f-display); letter-spacing: .01em; color: var(--muted); margin-left: 10px; opacity: 0; transition: opacity .3s ease; }
+.brand:hover .motto, .brand:focus .motto { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .motto { transition: none; } }
 .where, .date { font-size: 15px; color: var(--muted); }
 .where { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: lining-nums tabular-nums; }
 .date { text-align: right; flex: none; }
