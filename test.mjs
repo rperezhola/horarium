@@ -1,6 +1,6 @@
 // Pruebas del cálculo: node test.mjs
 import assert from 'node:assert/strict';
-import { buildCtx, cyclePos, officeAt, todayOffices, nextOffice } from './sun.js';
+import { buildCtx, cyclePos, officeAt, todayOffices, nextOffice, dialTimes } from './sun.js';
 import { dialNatural } from './dial.js';
 
 const MAD = [40.4168, -3.7038, 'Europe/Madrid'];
@@ -46,6 +46,14 @@ const near = (d, hhmm, tol = 3, tz) => {
   assert.equal(nx.name, 'Maitines');
 }
 
+// Horas de la esfera el día del cambio de hora, antes del amanecer: Laudes (en curso) enseña cuándo
+// empezó; Completas, la de esta noche (no la de anoche, con horario de verano); la puesta, la de hoy.
+{
+  const now = new Date('2026-10-25T05:53:00Z'), t = dialTimes(now, ...MAD);
+  near(t.Laudes, '06:31'); near(t.Completas, '19:29'); near(t.ocaso, '18:22'); near(t.Prima, '07:37');
+  assert.ok(t.Maitines > now);
+}
+
 // Lugar en otra zona horaria: las horas salen en la del lugar (Tokio, sin horario de verano).
 {
   const c = buildCtx(new Date('2026-06-21T03:00:00Z'), 35.68, 139.69, 'Asia/Tokyo');
@@ -61,7 +69,7 @@ const near = (d, hhmm, tol = 3, tz) => {
 // La esfera se pinta: en invierno caben los ocho nombres y el arco de luz es menor que el de noche.
 {
   const now = new Date('2026-12-21T09:40:00Z'), c = buildCtx(now, ...MAD);
-  const svg = dialNatural({ ...c, now, office: 'Tercia', time: '10:40', sub: 'hora IV · minuto 24', isDay: true, next: 'Sexta' });
+  const svg = dialNatural({ ...c, now, office: 'Tercia', time: '10:40', sub: 'hora IV · minuto 24', isDay: true, next: 'Sexta', fmt: d => d.toISOString().slice(11, 16) });
   for (const n of ['Prima', 'Tercia', 'Sexta', 'Nona', 'Vísperas', 'Completas', 'Maitines', 'Laudes']) assert.ok(svg.includes(`>${n}<`), n);
   assert.ok(!svg.includes('NaN'));
   assert.ok(c.day.end - c.day.start < 10 * 3600000);
@@ -70,7 +78,7 @@ const near = (d, hhmm, tol = 3, tz) => {
 // En verano también caben los ocho, aunque Laudes desborde su tramo de 46 minutos.
 {
   const now = new Date('2026-06-21T10:00:00Z'), c = buildCtx(now, ...MAD);
-  const svg = dialNatural({ ...c, now, office: 'Tercia', time: '12:00', sub: '', isDay: true });
+  const svg = dialNatural({ ...c, now, office: 'Tercia', time: '12:00', sub: '', isDay: true, fmt: d => d.toISOString().slice(11, 16) });
   for (const n of ['Prima', 'Sexta', 'Vísperas', 'Laudes']) assert.ok(svg.includes(`>${n}<`), n);
   assert.ok(!svg.includes('NaN'));
 }
@@ -80,7 +88,7 @@ const near = (d, hhmm, tol = 3, tz) => {
 {
   const now = new Date('2026-11-24T10:00:00Z'), c = buildCtx(now, 69.65, 18.96, 'Europe/Oslo');
   assert.ok(!c.polar && c.day.end - c.day.start < 3 * 3600000);
-  const svg = dialNatural({ ...c, now, office: 'Sexta', time: '11:00', sub: '', isDay: true });
+  const svg = dialNatural({ ...c, now, office: 'Sexta', time: '11:00', sub: '', isDay: true, fmt: d => d.toISOString().slice(11, 16) });
   const shown = ['Prima', 'Tercia', 'Sexta', 'Nona', 'Vísperas', 'Completas', 'Maitines', 'Laudes'].filter(n => svg.includes(`>${n}<`));
   assert.ok(shown.includes('Sexta') && shown.length < 8 && !svg.includes('NaN'), shown.join());
 }

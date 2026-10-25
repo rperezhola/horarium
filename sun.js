@@ -98,6 +98,19 @@ export function todayOffices(ctx) {
   }).sort((a, b) => (a.t ? a.t.getTime() : Infinity) - (b.t ? b.t.getTime() : Infinity));
 }
 
+// Horas de reloj que enseña la esfera: el oficio en curso, la hora a la que empezó; los demás, la
+// próxima vez que tocan; y la próxima puesta de sol. Así, antes del amanecer, Completas no enseña
+// la de anoche, que en un cambio de hora puede ir una hora desfasada.
+export function dialTimes(now, lat, lon, tz) {
+  const ctxs = [-1, 0, 1].map(k => buildCtx(new Date(now.getTime() + k * dayMs), lat, lon, tz)).filter(c => !c.polar);
+  const all = ctxs.flatMap(todayOffices).filter(o => o.t).sort((a, b) => a.t - b.t);
+  const past = all.filter(o => o.t <= now), from = past.length ? past[past.length - 1].t : now;
+  const out = {};
+  for (const o of all) if (o.t >= from && !(o.name in out)) out[o.name] = o.t;
+  out.ocaso = ctxs.map(c => c.day.end).find(t => t >= from) || null;
+  return out;
+}
+
 // Siguiente oficio después de `now`, aunque caiga en la noche siguiente.
 export function nextOffice(ctx, now) {
   const cands = todayOffices(ctx).concat(

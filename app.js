@@ -1,4 +1,4 @@
-import { buildCtx, temporal, cyclePos, officeAt, todayOffices, nextOffice, sunTimes, solarNoon, ymdIn } from './sun.js';
+import { buildCtx, temporal, cyclePos, officeAt, todayOffices, nextOffice, dialTimes, sunTimes, solarNoon, ymdIn } from './sun.js';
 import { dialNatural } from './dial.js';
 
 const $ = id => document.getElementById(id);
@@ -103,12 +103,10 @@ function render(force) {
   const nx = ok ? nextOffice(ctx, now) : null;
   if (ok) {
     const isDay = ctx.cur.kind === 'day', p = cyclePos(ctx, now), off = officeAt(p);
-    $('dial').innerHTML = dialNatural({ day: ctx.day, night: ctx.night, noon: ctx.noon, now, office: off.name, time: fmt(now), sub: `hora ${ROM[tp.hour - 1]} · minuto ${tp.minute}`, isDay, next: nx && nx.name });
+    $('dial').innerHTML = dialNatural({ day: ctx.day, night: ctx.night, noon: ctx.noon, now, office: off.name, time: fmt(now), sub: `hora ${ROM[tp.hour - 1]} · minuto ${tp.minute}`, isDay, next: nx && nx.name, fmt, times: dialTimes(now, pl.lat, pl.lon, pl.tz) });
     $('dial').setAttribute('aria-label', `${off.name}, ${fmt(now)}, hora ${ROM[tp.hour - 1]} ${isDay ? 'del día' : 'de la noche'}, minuto ${tp.minute}`);
     $('next').innerHTML = nx ? `Siguiente: <b>${nx.name}</b> a las ${fmt(nx.t)} · en ${fmtDur(nx.t - now)}` : '';
-    $('sun').innerHTML = `<span class="sw-d"></span>Sale el sol ${fmt(ctx.day.start)}<span class="sep">·</span><span class="sw-n"></span>se pone ${fmt(ctx.day.end)}`;
   } else {
-    $('sun').textContent = ctx.polar === 'day' ? 'Hoy el sol no se pone.' : ctx.polar === 'night' ? 'Hoy no sale el sol.' : '';
     const title = ctx.polar === 'day' ? 'Sol de medianoche' : ctx.polar === 'night' ? 'Noche polar' : 'Sin medida';
     $('dial').innerHTML = dialNatural({ office: title, time: fmt(now), sub: 'hoy no hay horas temporales', isDay: ctx.polar === 'day', polar: ctx.polar || 'night' });
     $('dial').setAttribute('aria-label', `${title}, ${fmt(now)}`);
